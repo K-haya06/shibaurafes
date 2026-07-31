@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教室運営 机椅子移動管理</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <h1>教室運営 机椅子移動管理</h1>
+        <div class="user-info-area">
+            <span id="login-user-disp">👤 未ログイン</span>
+            <button id="logout-btn" class="logout-btn hidden">ログアウト</button>
+        </div>
+        <button id="refresh-btn">最新情報に更新</button>
+    </header>
+
+    <main>
+        <!-- 検索バー ＆ サイズ切り替えエリア -->
+        <div class="controls-container">
+            <div id="search-box-container" class="search-box-container">
+                <input type="text" id="search-input" placeholder="階数・教室名・団体名・担当者で検索...">
+            </div>
+            <div class="size-selector">
+                <button class="size-btn" data-size="sm">小</button>
+                <button class="size-btn active" data-size="md">中</button>
+                <button class="size-btn" data-size="lg">大</button>
+            </div>
+        </div>
+
+        <div id="card-list" class="floor-container size-md">
+            <!-- JSで描画 -->
+        </div>
+    </main>
+
+    <!-- 詳細モーダル -->
+    <div id="detail-modal" class="modal hidden">
+        <div class="modal-overlay" id="modal-overlay"></div>
+        <div class="modal-content">
+            <button id="modal-close-btn" class="close-btn">&times;</button>
+
+            <div class="modal-header">
+                <div>
+                    <span id="modal-floor" class="floor-badge">1F</span>
+                    <h2 id="modal-title" style="display:inline;">101教室</h2>
+                    <span id="modal-assignee-badge" class="assignee-badge">👤 未担当</span>
+                </div>
+                <span id="modal-group" class="group-tag">サークル名</span>
+            </div>
+
+            <div class="modal-body">
+                <!-- 1. 担当者情報 -->
+                <section class="info-section">
+                    <h3>👤 教室責任者情報</h3>
+                    <div class="info-grid-2col">
+                        <p><strong>責任者:</strong> <span id="val-leader">-</span></p>
+                        <p><strong>副責任者:</strong> <span id="val-subleader">-</span></p>
+                    </div>
+                </section>
+
+                <!-- 2. 進捗チェック操作（団体側は閲覧のみ） -->
+                <section class="info-section">
+                    <h3>✅ 進捗チェック</h3>
+                    <div class="check-control-box">
+                        <div class="step-header">
+                            <button id="step-back-btn" class="back-btn">◀ 前へ</button>
+                            <span id="current-step-name" class="step-title">準備 1次</span>
+                        </div>
+                        <div class="status-selector">
+                            <select id="modal-status-select">
+                                <option value="未実施">未実施</option>
+                                <option value="実施中">実施中</option>
+                                <option value="再度">再度</option>
+                                <option value="完了">完了</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="assign-action-box" id="assign-action-area">
+                        <span>現在の作業担当者: <strong id="val-assigned-user">未登録</strong></span>
+                        <div>
+                            <button id="modal-claim-btn" class="claim-btn">自分が担当する</button>
+                            <button id="modal-unclaim-btn" class="unclaim-btn hidden">担当を外す</button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. 机椅子の数量・移動先 -->
+                <section class="info-section">
+                    <h3>📦 机・椅子 一覧</h3>
+                    <table class="detail-table">
+                        <thead>
+                            <tr>
+                                <th>項目</th>
+                                <th>元の数</th>
+                                <th>使用数</th>
+                                <th>移動数</th>
+                                <th>移動先</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <th>机α</th>
+                                <td id="td-deskA-orig">0</td>
+                                <td id="td-deskA-used">0</td>
+                                <td id="td-deskA-move" class="highlight-move">0</td>
+                                <td id="td-deskA-dest" rowspan="2" class="dest-cell">-</td>
+                            </tr>
+                            <tr>
+                                <th>机β</th>
+                                <td id="td-deskB-orig">0</td>
+                                <td id="td-deskB-used">0</td>
+                                <td id="td-deskB-move" class="highlight-move">0</td>
+                            </tr>
+                            <tr>
+                                <th>椅子</th>
+                                <td id="td-chair-orig">0</td>
+                                <td id="td-chair-used">0</td>
+                                <td id="td-chair-move" class="highlight-move">0</td>
+                                <td id="td-chair-dest" class="dest-cell">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </section>
+
+                <!-- 4. 特殊設備 -->
+                <section class="info-section">
+                    <h3>🪑 特殊設備</h3>
+                    <div class="info-grid-2col">
+                        <p><strong>一人用机:</strong> <span id="val-single-desk">-</span></p>
+                        <p><strong>一人用椅子:</strong> <span id="val-single-chair">-</span></p>
+                    </div>
+                </section>
+
+                <!-- 5. 備考 -->
+                <section class="info-section">
+                    <h3>📝 備考</h3>
+                    <div id="val-remarks" class="remarks-box">なし</div>
+                </section>
+
+                <hr class="section-divider" id="admin-divider">
+
+                <!-- 6. 編集・ログ（委員会専用機能） -->
+                <details class="sub-feature-accordion" id="admin-feature-accordion">
+                    <summary>⚙️ 数量の変更・編集・ログ（委員会向け）</summary>
+                    <div class="accordion-content">
+                        <div class="edit-grid">
+                            <div class="edit-group">
+                                <label>項目を選択</label>
+                                <select id="edit-item-key">
+                                    <option value="机α（元の数）">机α（元の数）</option>
+                                    <option value="机α（使用数）">机α（使用数）</option>
+                                    <option value="机α（移動数）">机α（移動数）</option>
+                                    <option value="机β（元の数）">机β（元の数）</option>
+                                    <option value="机β（使用数）">机β（使用数）</option>
+                                    <option value="机β（移動数）">机β（移動数）</option>
+                                    <option value="椅子（元の数）">椅子（元の数）</option>
+                                    <option value="椅子（使用数）">椅子（使用数）</option>
+                                    <option value="椅子（移動数）">椅子（移動数）</option>
+                                </select>
+                            </div>
+
+                            <div class="edit-group inline-inputs">
+                                <div>
+                                    <label>現在値</label>
+                                    <input type="text" id="edit-old-val" readonly value="0">
+                                </div>
+                                <span class="arrow">➔</span>
+                                <div>
+                                    <label>変更後の値</label>
+                                    <input type="number" id="edit-new-val" min="0" value="0">
+                                </div>
+                            </div>
+
+                            <div class="edit-group">
+                                <label>変更理由・メモ</label>
+                                <input type="text" id="edit-note" placeholder="例: 予備の机を追加投入したため">
+                            </div>
+
+                            <button id="save-qty-btn" class="save-btn">数量を更新してログを保存</button>
+                        </div>
+
+                        <h4>📜 変更履歴（ログ）</h4>
+                        <ul id="log-list" class="log-list">
+                            <li class="empty-log">読み込み中...</li>
+                        </ul>
+                    </div>
+                </details>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- ログイン画面モーダル -->
+    <div id="login-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content login-content">
+            <h2>🔑 ログイン</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-username">ユーザー名</label>
+                    <input type="text" id="login-username" required placeholder="例: 芝浦太郎">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">パスワード</label>
+                    <input type="password" id="login-password" required placeholder="パスワードを入力">
+                </div>
+                <p id="login-error-msg" class="error-msg hidden"></p>
+                <button type="submit" id="login-submit-btn" class="save-btn">ログイン</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,799 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 12px;
+    background-color: #f4f6f8;
+    color: #333;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+h1 {
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+#refresh-btn {
+    padding: 8px 12px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* --- ヘッダー操作者選択 --- */
+.user-select-box {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    background: #e9ecef;
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+.user-select-box select {
+    padding: 4px 6px;
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+    font-weight: bold;
+}
+
+/* --- 検索とサイズ切り替えエリア --- */
+.controls-container {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+#search-input {
+    flex: 1;
+    padding: 10px 14px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+}
+
+.size-selector {
+    display: flex;
+    background: #e9ecef;
+    padding: 2px;
+    border-radius: 8px;
+    align-items: center;
+}
+
+.size-btn {
+    padding: 6px 10px;
+    border: none;
+    background: transparent;
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #495057;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.size-btn.active {
+    background: white;
+    color: #007bff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+/* --- 階数別グループデザイン --- */
+.floor-section {
+    margin-bottom: 24px;
+}
+
+.floor-title {
+    font-size: 1.05rem;
+    font-weight: bold;
+    color: #1a252f;
+    border-bottom: 2px solid #007bff;
+    padding-bottom: 4px;
+    margin-bottom: 10px;
+}
+
+.card-grid {
+    display: grid;
+    gap: 12px;
+}
+
+/* --- カードサイズ：小 (size-sm) --- */
+.floor-container.size-sm .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+}
+
+.floor-container.size-sm .room-card {
+    padding: 10px;
+}
+
+.floor-container.size-sm .room-title {
+    font-size: 1rem;
+}
+
+.floor-container.size-sm .group-name {
+    font-size: 0.7rem;
+    padding: 1px 4px;
+}
+
+.floor-container.size-sm .card-detail-rows {
+    font-size: 0.75rem;
+    padding: 6px;
+}
+
+.floor-container.size-sm .status-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+}
+
+/* --- カードサイズ：中 (size-md) デフォルト --- */
+.floor-container.size-md .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 14px;
+}
+
+.floor-container.size-md .room-card {
+    padding: 16px;
+}
+
+.floor-container.size-md .room-title {
+    font-size: 1.25rem;
+}
+
+.floor-container.size-md .group-name {
+    font-size: 0.8rem;
+}
+
+/* --- カードサイズ：大 (size-lg) --- */
+.floor-container.size-lg .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 18px;
+}
+
+.floor-container.size-lg .room-card {
+    padding: 20px;
+    border-width: 2px;
+}
+
+.floor-container.size-lg .room-title {
+    font-size: 1.4rem;
+}
+
+.floor-container.size-lg .group-name {
+    font-size: 0.9rem;
+    padding: 3px 10px;
+}
+
+.floor-container.size-lg .card-detail-rows {
+    font-size: 0.95rem;
+    padding: 10px;
+}
+
+.floor-container.size-lg .status-badge {
+    font-size: 0.85rem;
+    padding: 6px 14px;
+}
+
+/* 共通カードスタイル */
+.room-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    border: 1px solid #e9ecef;
+    transition: transform 0.1s;
+}
+
+.room-card:active {
+    transform: scale(0.98);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.room-title {
+    font-weight: bold;
+}
+
+.group-name {
+    color: #6c757d;
+    background: #f1f3f5;
+    border-radius: 4px;
+    padding: 2px 8px;
+}
+
+/* カード内詳細エリア */
+.card-detail-rows {
+    margin-top: 10px;
+    font-size: 0.88rem;
+    color: #495057;
+    background: #f8f9fa;
+    padding: 8px 10px;
+    border-radius: 6px;
+}
+
+.card-detail-rows div {
+    margin-bottom: 4px;
+}
+
+.card-detail-rows div:last-child {
+    margin-bottom: 0;
+}
+
+.num-move {
+    color: #d9480f;
+    font-weight: bold;
+}
+
+.dest-text {
+    font-weight: bold;
+    color: #1971c2;
+}
+
+.card-body {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+/* ステータスバッジ */
+.status-badge {
+    font-weight: bold;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    padding: 4px 10px;
+}
+
+.status-badge[data-status="未実施"] {
+    background-color: #e2e3e5;
+    color: #383d41;
+}
+
+.status-badge[data-status="実施中"] {
+    background-color: #cce5ff;
+    color: #004085;
+}
+
+.status-badge[data-status="再度"] {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-badge[data-status="完了"] {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+/* 教室名横の担当者バッジ */
+.assignee-badge {
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background-color: #e7f5ff;
+    color: #1971c2;
+    border: 1px solid #a5d8ff;
+    margin-left: 6px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.assignee-badge.unassigned {
+    background-color: #f1f3f5;
+    color: #868e96;
+    border-color: #ced4da;
+}
+
+/* カード内の「＋担当する」ボタン */
+.claim-card-btn {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    background-color: #e7f5ff;
+    color: #1971c2;
+    border: 1px solid #a5d8ff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 6px;
+}
+
+.claim-card-btn:hover {
+    background-color: #d0ebff;
+}
+
+.unclaim-btn {
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-left: 4px;
+}
+
+.unclaim-btn:hover {
+    background: #bd2130;
+}
+
+.unclaim-btn.hidden {
+    display: none;
+}
+
+/* --- モーダル（ポップアップ） --- */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    z-index: 1000;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    position: relative;
+    background: white;
+    width: 100%;
+    max-width: 500px;
+    max-height: 88vh;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    padding: 20px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    z-index: 1001;
+    animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+.close-btn {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    color: #888;
+    cursor: pointer;
+}
+
+.modal-header {
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+}
+
+.floor-badge {
+    background: #007bff;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.group-tag {
+    font-size: 0.8rem;
+    color: #6c757d;
+    background: #f1f3f5;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+.info-section {
+    margin-bottom: 20px;
+}
+
+.info-section h3 {
+    font-size: 0.95rem;
+    margin: 0 0 10px 0;
+    color: #495057;
+}
+
+.info-grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: #f8f9fa;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+}
+
+.info-grid-2col p {
+    margin: 0;
+}
+
+/* 進捗チェックコントロール */
+.check-control-box {
+    background: #f1f3f5;
+    padding: 12px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.step-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.step-title {
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.back-btn {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+select#modal-status-select {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.assign-action-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    font-size: 0.8rem;
+}
+
+.claim-btn {
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    background: #17a2b8;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.claim-btn:hover {
+    background: #138496;
+}
+
+/* 机椅子詳細テーブル */
+.detail-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    background: white;
+}
+
+.detail-table th,
+.detail-table td {
+    border: 1px solid #dee2e6;
+    padding: 6px 8px;
+    text-align: center;
+}
+
+.detail-table thead th {
+    background-color: #e9ecef;
+}
+
+.detail-table tbody th {
+    background-color: #f8f9fa;
+}
+
+.highlight-move {
+    color: #d9480f;
+    font-weight: bold;
+    background-color: #fff4e6;
+}
+
+.dest-cell {
+    font-weight: bold;
+    background-color: #f1f3f5;
+    vertical-align: middle;
+}
+
+.remarks-box {
+    background: #f8f9fa;
+    border-left: 4px solid #6c757d;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    color: #495057;
+    border-radius: 0 6px 6px 0;
+    white-space: pre-wrap;
+}
+
+.section-divider {
+    border: none;
+    border-top: 1px dashed #ccc;
+    margin: 20px 0 15px 0;
+}
+
+/* サブ機能の折りたたみ（アコーディオン） */
+.sub-feature-accordion {
+    background: #f1f3f5;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.sub-feature-accordion summary {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #495057;
+    cursor: pointer;
+    outline: none;
+}
+
+.accordion-content {
+    margin-top: 12px;
+}
+
+.accordion-content h4 {
+    font-size: 0.85rem;
+    margin: 10px 0 6px 0;
+}
+
+.edit-grid {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.edit-group {
+    margin-bottom: 10px;
+}
+
+.edit-group label {
+    display: block;
+    font-size: 0.75rem;
+    color: #6c757d;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.edit-group select,
+.edit-group input[type="text"],
+.edit-group input[type="number"] {
+    width: 100%;
+    padding: 8px;
+    font-size: 0.9rem;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+
+.edit-group input[readonly] {
+    background-color: #e9ecef;
+    color: #495057;
+    font-weight: bold;
+}
+
+.inline-inputs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.inline-inputs>div {
+    flex: 1;
+}
+
+.inline-inputs .arrow {
+    font-weight: bold;
+    color: #007bff;
+}
+
+.save-btn {
+    width: 100%;
+    padding: 10px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.save-btn:hover {
+    background-color: #218838;
+}
+
+/* ログリスト */
+.log-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 180px;
+    overflow-y: auto;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    background: #fafafa;
+}
+
+.log-item {
+    padding: 8px 10px;
+    border-bottom: 1px solid #eee;
+    font-size: 0.8rem;
+}
+
+.log-item:last-child {
+    border-bottom: none;
+}
+
+.log-meta {
+    display: flex;
+    justify-content: space-between;
+    color: #888;
+    font-size: 0.72rem;
+    margin-bottom: 2px;
+}
+
+.log-body {
+    font-weight: bold;
+    color: #333;
+}
+
+.log-note {
+    color: #6c757d;
+    font-size: 0.75rem;
+    margin-top: 2px;
+    font-style: italic;
+}
+
+.empty-log {
+    font-style: italic;
+    color: #adb5bd;
+    padding: 10px;
+    text-align: center;
+}
+
+/* --- ログイン画面スタイル --- */
+.user-info-area {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    background: #e9ecef;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: bold;
+}
+
+.logout-btn {
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.logout-btn.hidden {
+    display: none;
+}
+
+.login-content {
+    max-width: 360px;
+    margin: auto;
+    border-radius: 12px;
+}
+
+.form-group {
+    margin-bottom: 14px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+    color: #495057;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 0.95rem;
+}
+
+.error-msg {
+    color: #dc3545;
+    font-size: 0.8rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.error-msg.hidden {
+    display: none;
+}
+
+.controls-container {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    align-items: center;
+}
+
+.search-box-container {
+    flex: 1;
+}
+
+#search-input {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 1rem;
+    box-sizing: border-box;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+}
+
+.hidden {
+    display: none !important;
+}
