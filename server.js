@@ -10,19 +10,31 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// server.js 冒頭の GoogleAuth 設定部分
+// --- Google API 認証初期化（Render環境変数 ＆ ローカルファイル両対応） ---
 let auth;
+
 if (process.env.GOOGLE_CREDENTIALS_JSON) {
-    auth = new google.auth.GoogleAuth({
-        credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON),
-        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    // Render環境：環境変数のJSON文字列をオブジェクトに変換して設定
+    try {
+        const credentials = typeof process.env.GOOGLE_CREDENTIALS_JSON === 'string'
+            ? JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON)
+            : process.env.GOOGLE_CREDENTIALS_JSON;
+
+        auth = new google.auth.GoogleAuth({
+            credentials: credentials, // ★ credentials プロパティにオブジェクトを渡す
+            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        });
+    } catch (err) {
+        console.error('GOOGLE_CREDENTIALS_JSONのパースに失敗しました:', err);
+    }
 } else {
+    // ローカル開発環境：jsonファイルから読み込み
     auth = new google.auth.GoogleAuth({
         keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
         scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 }
+
 const sheets = google.sheets({ version: 'v4', auth });
 
 // 列インデックスを A, B, C... に変換するヘルパー関数
