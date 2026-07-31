@@ -10,27 +10,20 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// --- Google API 認証初期化（Render環境変数 ＆ ローカルファイル両対応） ---
+// --- Google API 認証初期化 ---
 let auth;
 
 if (process.env.GOOGLE_CREDENTIALS_JSON) {
-    // Render環境：環境変数のJSON文字列をオブジェクトに変換して設定
-    try {
-        const credentials = typeof process.env.GOOGLE_CREDENTIALS_JSON === 'string'
-            ? JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON)
-            : process.env.GOOGLE_CREDENTIALS_JSON;
-
-        auth = new google.auth.GoogleAuth({
-            credentials: credentials, // ★ credentials プロパティにオブジェクトを渡す
-            scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-        });
-    } catch (err) {
-        console.error('GOOGLE_CREDENTIALS_JSONのパースに失敗しました:', err);
-    }
-} else {
-    // ローカル開発環境：jsonファイルから読み込み
+    // Renderなどの本番環境（JSON文字列から直接読み込み）
+    const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
     auth = new google.auth.GoogleAuth({
-        keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+} else {
+    // ローカル開発環境（.envのパス指定）
+    auth = new google.auth.GoogleAuth({
+        keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS || './google-key.json',
         scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 }
