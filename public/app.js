@@ -582,10 +582,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // モーダルを閉じる関数
     function closeModal() {
         modal.classList.add('hidden');
+
+        // ★ body の modal-open クラスを確実に削除してスクロールを復活させる
+        document.body.classList.remove('modal-open');
+
         currentSelectedRoom = null;
-        renderFilteredCards();
+
+        // 必要に応じてカード一覧の表示状態を再描画
+        if (typeof renderFilteredCards === 'function') {
+            renderFilteredCards();
+        }
     }
 
     stepBackBtn.addEventListener('click', () => {
@@ -597,8 +606,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    modalCloseBtn.addEventListener('click', closeModal);
-    modalOverlay.addEventListener('click', closeModal);
+    // 閉じるボタン（×）クリック時
+    if (modalCloseBtn) {
+        modalCloseBtn.addEventListener('click', closeModal);
+    }
+
+    // モーダル背景（オーバーレイ）クリック時
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', closeModal);
+    }
+
+    // Escキーが押された時にも確実に閉じてスクロールを解除
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+            closeModal();
+        }
+    });
 
     // 委員会アカウント時のリアルタイム検索
     searchInput.addEventListener('input', () => {

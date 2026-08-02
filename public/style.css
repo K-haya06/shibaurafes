@@ -832,4 +832,17 @@ select#modal-status-select {
         text-align: center;
         transform: rotate(90deg);
     }
+
+    .modal-content {
+        padding-bottom: 120px;
+        /* ★スマホの時だけ下に120pxの大きな余白を追加 */
+    }
+}
+
+/* --- PC表示（画面幅 768px 以上）の時だけモーダル幅を広くする --- */
+@media (min-width: 768px) {
+    .modal-content {
+        max-width: 700px;/* ★デフォルトの 500px から 700px に拡張 */
+        padding: 28px;/* 内側の余白も少しゆったりさせる */
+    }
 }
