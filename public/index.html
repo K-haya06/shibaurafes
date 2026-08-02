@@ -63,23 +63,37 @@
                     </div>
                 </section>
 
-                <!-- 2. 進捗チェック操作（団体側は閲覧のみ） -->
+                <!-- 2. 進捗チェック操作 -->
                 <section class="info-section">
                     <h3>✅ 進捗チェック</h3>
-                    <div class="check-control-box">
-                        <div class="step-header">
+                    <div class="check-control-box" style="flex-direction: column; gap: 8px;">
+                        <div class="step-header" style="width: 100%; justify-content: space-between;">
                             <button id="step-back-btn" class="back-btn">◀ 前へ</button>
-                            <span id="current-step-name" class="step-title">準備 1次</span>
+                            <span>
+                                <strong id="current-step-name" class="step-title">準備 1次</strong>:
+                                <span id="current-status-badge" class="status-pill" data-status="未実施">未実施</span>
+                            </span>
+                            <button id="step-next-btn" class="back-btn">次へ ▶</button>
                         </div>
-                        <div class="status-selector">
-                            <select id="modal-status-select">
-                                <option value="未実施">未実施</option>
-                                <option value="実施中">実施中</option>
-                                <option value="再度">再度</option>
-                                <option value="完了">完了</option>
-                            </select>
+
+                        <!-- ★ ワンタップステータス更新ボタン群（並び順変更 ＆ 未実施追加） -->
+                        <div id="quick-status-actions" class="status-actions"
+                            style="width: 100%; display: flex; gap: 6px; margin-top: 4px;">
+                            <button class="btn-action btn-none" data-val="未実施"
+                                style="flex:1; padding:6px; font-weight:bold; background:#e2e3e5; color:#383d41; border:1px solid #ced4da; border-radius:4px; cursor:pointer;">⚪
+                                未実施</button>
+                            <button class="btn-action btn-request" data-val="依頼中"
+                                style="flex:1; padding:6px; font-weight:bold; background:#ffc107; color:#333; border:none; border-radius:4px; cursor:pointer;">🟡
+                                依頼中</button>
+                            <button class="btn-action btn-issue" data-val="不備あり"
+                                style="flex:1; padding:6px; font-weight:bold; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;">⚠️
+                                不備あり</button>
+                            <button class="btn-action btn-complete" data-val="完了"
+                                style="flex:1; padding:6px; font-weight:bold; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">✅
+                                完了</button>
                         </div>
                     </div>
+
                     <div class="assign-action-box" id="assign-action-area">
                         <span>現在の作業担当者: <strong id="val-assigned-user">未登録</strong></span>
                         <div>
@@ -108,13 +122,14 @@
                                 <td id="td-deskA-orig">0</td>
                                 <td id="td-deskA-used">0</td>
                                 <td id="td-deskA-move" class="highlight-move">0</td>
-                                <td id="td-deskA-dest" rowspan="2" class="dest-cell">-</td>
+                                <td id="td-deskA-dest" class="dest-cell">-</td> <!-- ★ rowspan="2" を削除 -->
                             </tr>
                             <tr>
                                 <th>机β</th>
                                 <td id="td-deskB-orig">0</td>
                                 <td id="td-deskB-used">0</td>
                                 <td id="td-deskB-move" class="highlight-move">0</td>
+                                <td id="td-deskB-dest" class="dest-cell">-</td> <!-- ★ 机β専用のセルを追加 -->
                             </tr>
                             <tr>
                                 <th>椅子</th>
@@ -127,12 +142,11 @@
                     </table>
                 </section>
 
-                <!-- 4. 特殊設備 -->
-                <section class="info-section">
-                    <h3>🪑 特殊設備</h3>
+                <!-- 4. 特殊設備（値がある時のみJSで表示） -->
+                <section class="info-section" id="section-special-equip">
                     <div class="info-grid-2col">
-                        <p><strong>一人用机:</strong> <span id="val-single-desk">-</span></p>
-                        <p><strong>一人用椅子:</strong> <span id="val-single-chair">-</span></p>
+                        <p id="box-single-desk"><strong>一人用机:</strong> <span id="val-single-desk">-</span></p>
+                        <p id="box-single-chair"><strong>一人用椅子:</strong> <span id="val-single-chair">-</span></p>
                     </div>
                 </section>
 
@@ -148,40 +162,79 @@
                 <details class="sub-feature-accordion" id="admin-feature-accordion">
                     <summary>⚙️ 数量の変更・編集・ログ（委員会向け）</summary>
                     <div class="accordion-content">
-                        <div class="edit-grid">
-                            <div class="edit-group">
-                                <label>項目を選択</label>
-                                <select id="edit-item-key">
-                                    <option value="机α（元の数）">机α（元の数）</option>
-                                    <option value="机α（使用数）">机α（使用数）</option>
-                                    <option value="机α（移動数）">机α（移動数）</option>
-                                    <option value="机β（元の数）">机β（元の数）</option>
-                                    <option value="机β（使用数）">机β（使用数）</option>
-                                    <option value="机β（移動数）">机β（移動数）</option>
-                                    <option value="椅子（元の数）">椅子（元の数）</option>
-                                    <option value="椅子（使用数）">椅子（使用数）</option>
-                                    <option value="椅子（移動数）">椅子（移動数）</option>
-                                </select>
-                            </div>
 
-                            <div class="edit-group inline-inputs">
-                                <div>
-                                    <label>現在値</label>
-                                    <input type="text" id="edit-old-val" readonly value="0">
+                        <!-- 📦 1. 数量の手動変更（見出し追加） -->
+                        <div class="qty-edit-box">
+                            <h4 style="margin: 0 0 8px 0; color: #333;">📦 数量の手動変更（連動自動計算）</h4>
+                            <div class="edit-grid">
+                                <div class="edit-group">
+                                    <label>項目を選択</label>
+                                    <select id="edit-item-key">
+                                        <option value="机α（元の数）">机α（元の数）</option>
+                                        <option value="机α（使用数）">机α（使用数）</option>
+                                        <option value="机α（移動数）">机α（移動数）</option>
+                                        <option value="机β（元の数）">机β（元の数）</option>
+                                        <option value="机β（使用数）">机β（使用数）</option>
+                                        <option value="机β（移動数）">机β（移動数）</option>
+                                        <option value="椅子（元の数）">椅子（元の数）</option>
+                                        <option value="椅子（使用数）">椅子（使用数）</option>
+                                        <option value="椅子（移動数）">椅子（移動数）</option>
+                                    </select>
                                 </div>
-                                <span class="arrow">➔</span>
-                                <div>
-                                    <label>変更後の値</label>
-                                    <input type="number" id="edit-new-val" min="0" value="0">
+
+                                <div class="edit-group inline-inputs">
+                                    <div>
+                                        <label>現在値</label>
+                                        <input type="text" id="edit-old-val" readonly value="0">
+                                    </div>
+                                    <span class="arrow">➔</span>
+                                    <div>
+                                        <label>変更後の値</label>
+                                        <input type="number" id="edit-new-val" min="0" value="0">
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div class="edit-group">
-                                <label>変更理由・メモ</label>
-                                <input type="text" id="edit-note" placeholder="例: 予備の机を追加投入したため">
-                            </div>
+                                <div class="edit-group">
+                                    <label>変更理由・メモ</label>
+                                    <input type="text" id="edit-note" placeholder="例: 予備の机を追加投入したため">
+                                </div>
 
-                            <button id="save-qty-btn" class="save-btn">数量を更新してログを保存</button>
+                                <button id="save-qty-btn" class="save-btn">数量を更新してログを保存</button>
+                            </div>
+                        </div>
+
+                        <!-- 📍 2. 移動先の変更・内訳追加（机α・βを分離） -->
+                        <div class="qty-edit-box" style="margin-top: 16px;">
+                            <h4 style="margin: 0 0 8px 0; color: #333;">📍 移動先の変更・内訳追加</h4>
+                            <div class="edit-grid" style="background: #ffffff;">
+                                <div class="edit-group">
+                                    <label>対象の家具</label>
+                                    <select id="edit-dest-item-key">
+                                        <option value="机α">机α</option>
+                                        <option value="机β">机β</option>
+                                        <option value="椅子">椅子</option>
+                                    </select>
+                                </div>
+
+                                <div class="edit-group inline-inputs">
+                                    <div>
+                                        <label>新しい移動先</label>
+                                        <input type="text" id="edit-new-dest-name" placeholder="例: 301教室">
+                                    </div>
+                                    <div>
+                                        <label>移動する個数</label>
+                                        <input type="number" id="edit-dest-qty" min="1" placeholder="数量">
+                                    </div>
+                                </div>
+
+                                <div class="edit-group">
+                                    <label>変更理由・メモ</label>
+                                    <input type="text" id="edit-dest-note" placeholder="例: 201教室が満杯のため分散移動">
+                                </div>
+
+                                <button id="save-dest-btn" class="save-btn"
+                                    style="background-color: #0275d8;">移動先を更新してログ保存</button>
+                            </div>
                         </div>
 
                         <h4>📜 変更履歴（ログ）</h4>

@@ -6,7 +6,7 @@ body {
     color: #333;
 }
 
-/* ★ モーダル表示時に背景のスクロールを完全に止めるクラス */
+/* モーダル表示時に背景のスクロールを止める */
 body.modal-open {
     overflow: hidden !important;
     height: 100vh;
@@ -62,7 +62,6 @@ h1 {
     align-items: center;
     position: relative;
     z-index: 1;
-    /* 重なり順を低めに設定 */
 }
 
 .search-box-container {
@@ -73,7 +72,6 @@ h1 {
     width: 100%;
     padding: 10px 14px;
     font-size: 16px;
-    /* スマホ自動ズーム防止のために16px */
     box-sizing: border-box;
     border: 1px solid #ced4da;
     border-radius: 8px;
@@ -231,32 +229,49 @@ h1 {
     padding: 2px 8px;
 }
 
-/* カード内詳細エリア */
+/* ★ カード内詳細エリア（「:」を縦一列に整列させるグリッド構造） */
 .card-detail-rows {
     margin-top: 10px;
-    font-size: 0.88rem;
+    font-size: 0.85rem;
     color: #495057;
     background: #f8f9fa;
     padding: 8px 10px;
     border-radius: 6px;
 }
 
-.card-detail-rows div {
-    margin-bottom: 4px;
+.card-detail-item {
+    display: grid;
+    grid-template-columns: 3.2em auto 1fr;
+    /* ラベル / コロン / 移動先＆数量 */
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 3px;
+    white-space: nowrap;
 }
 
-.card-detail-rows div:last-child {
+.card-detail-item:last-child {
     margin-bottom: 0;
 }
 
-.num-move {
-    color: #d9480f;
+.card-detail-item .colon {
+    text-align: center;
     font-weight: bold;
+    color: #6c757d;
 }
 
+/* カード内の移動先テキスト（長すぎる場合は「...」で自動省略） */
 .dest-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-weight: bold;
     color: #1971c2;
+}
+
+.num-move-unit {
+    color: #d9480f;
+    font-weight: bold;
+    margin-left: 4px;
 }
 
 .card-body {
@@ -284,27 +299,41 @@ h1 {
     padding: 4px 10px;
 }
 
-.status-badge[data-status="未実施"] {
+.status-badge[data-status="未実施"],
+.status-pill[data-status="未実施"] {
     background-color: #e2e3e5;
     color: #383d41;
 }
 
-.status-badge[data-status="実施中"] {
+.status-badge[data-status="依頼中"],
+.status-pill[data-status="依頼中"] {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+.status-badge[data-status="不備あり"],
+.status-badge[data-status="再度"],
+.status-pill[data-status="不備あり"],
+.status-pill[data-status="再度"] {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.status-badge[data-status="実施中"],
+.status-pill[data-status="実施中"] {
     background-color: #cce5ff;
     color: #004085;
 }
 
-.status-badge[data-status="再度"] {
-    background-color: #fff3cd;
-    color: #856404;
-}
-
-.status-badge[data-status="完了"] {
+.status-badge[data-status="完了"],
+.status-pill[data-status="完了"] {
     background-color: #d4edda;
     color: #155724;
 }
 
-/* 教室名横の担当者バッジ */
+/* 担当者バッジ */
 .assignee-badge {
     font-size: 0.75rem;
     font-weight: bold;
@@ -324,7 +353,6 @@ h1 {
     border-color: #ced4da;
 }
 
-/* カード内の「＋担当する」ボタン */
 .claim-card-btn {
     font-size: 0.7rem;
     padding: 2px 6px;
@@ -372,7 +400,6 @@ h1 {
     justify-content: center;
     align-items: flex-end;
     z-index: 2000;
-    /* ★最前面へ引き上げ */
 }
 
 .modal.hidden {
@@ -401,7 +428,6 @@ h1 {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     z-index: 2001;
-    /* ★最前面へ引き上げ */
     animation: slideUp 0.2s ease-out;
 }
 
@@ -415,7 +441,6 @@ h1 {
     }
 }
 
-/* 閉じるボタン（×） */
 .close-btn {
     position: absolute;
     top: 12px;
@@ -428,7 +453,6 @@ h1 {
     z-index: 10;
 }
 
-/* ★ モーダルヘッダー（上下位置の整列） */
 .modal-header {
     margin-bottom: 15px;
     border-bottom: 1px solid #eee;
@@ -437,7 +461,6 @@ h1 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    /* ★上下中央揃え */
     flex-wrap: wrap;
     gap: 8px;
 }
@@ -445,7 +468,6 @@ h1 {
 .modal-header>div {
     display: flex;
     align-items: center;
-    /* ★階数、教室名、担当者バッジの上下中央揃え */
     flex-wrap: wrap;
     gap: 6px;
 }
@@ -536,13 +558,6 @@ h1 {
     cursor: pointer;
 }
 
-select#modal-status-select {
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    font-weight: bold;
-}
-
 .assign-action-box {
     display: flex;
     justify-content: space-between;
@@ -569,39 +584,55 @@ select#modal-status-select {
     background: #138496;
 }
 
-/* 机椅子詳細テーブル */
+/* ★ モーダル内 机椅子テーブル（文字サイズ拡大 ＆ 内訳改行対応） */
 .detail-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.82rem;
+    font-size: 0.95rem;
     background: white;
+    table-layout: fixed;
+    margin-top: 6px;
 }
 
 .detail-table th,
 .detail-table td {
-    border: 1px solid #dee2e6;
-    padding: 6px 8px;
+    border: 1px solid #ced4da;
+    padding: 8px 6px;
     text-align: center;
+    line-height: 1.4;
 }
 
 .detail-table thead th {
     background-color: #e9ecef;
+    font-size: 0.9rem;
+    color: #495057;
 }
 
 .detail-table tbody th {
     background-color: #f8f9fa;
+    font-weight: bold;
+    font-size: 0.95rem;
+}
+
+.detail-table td {
+    font-size: 1rem;
+    font-weight: 500;
 }
 
 .highlight-move {
     color: #d9480f;
     font-weight: bold;
+    font-size: 1.1rem;
     background-color: #fff4e6;
 }
 
 .dest-cell {
     font-weight: bold;
-    background-color: #f1f3f5;
+    color: #1971c2;
+    background-color: #f8f9fa;
     vertical-align: middle;
+    font-size: 0.9rem;
+    word-break: break-all;
 }
 
 .remarks-box {
@@ -620,7 +651,7 @@ select#modal-status-select {
     margin: 20px 0 15px 0;
 }
 
-/* サブ機能の折りたたみ（アコーディオン） */
+/* サブ機能のアコーディオン */
 .sub-feature-accordion {
     background: #f1f3f5;
     border-radius: 8px;
@@ -670,7 +701,6 @@ select#modal-status-select {
     width: 100%;
     padding: 8px;
     font-size: 16px;
-    /* スマホで自動ズームしない16px */
     border: 1px solid #ced4da;
     border-radius: 6px;
     box-sizing: border-box;
@@ -762,7 +792,7 @@ select#modal-status-select {
     text-align: center;
 }
 
-/* --- ログイン画面スタイル --- */
+/* ログイン画面スタイル */
 .user-info-area {
     display: flex;
     align-items: center;
@@ -830,17 +860,6 @@ select#modal-status-select {
     display: none !important;
 }
 
-/* --- 控え室表示バッジ・スタイル --- */
-.anteroom-info {
-    margin-top: 4px;
-    font-size: 0.8rem;
-    color: #d9480f;
-    background-color: #fff4e6;
-    padding: 2px 6px;
-    border-radius: 4px;
-    display: inline-block;
-}
-
 .anteroom-badge {
     font-size: 0.8rem;
     font-weight: bold;
@@ -854,7 +873,7 @@ select#modal-status-select {
     align-items: center;
 }
 
-/* ★ スマホ画面向けの縦並びレスポンシブ微調整 */
+/* レスポンシブ微調整 */
 @media (max-width: 600px) {
     .inline-inputs {
         flex-direction: column;
@@ -869,17 +888,20 @@ select#modal-status-select {
 
     .modal-content {
         padding-bottom: 120px;
-        /* ★スマホの時だけ下に120pxの大きな余白を追加 */
     }
 }
 
-/* --- PC表示（画面幅 768px 以上）の時だけモーダル幅を広くする --- */
 @media (min-width: 768px) {
     .modal-content {
         max-width: 700px;
-        /* ★デフォルトの 500px から 700px に拡張 */
         padding: 28px;
-        /* 内側の余白も少しゆったりさせる */
     }
 }
 
+.status-pill {
+    font-size: 0.8rem;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 12px;
+    display: inline-block;
+}
