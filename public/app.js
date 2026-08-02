@@ -344,6 +344,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateModalCheckArea();
         modal.classList.remove('hidden');
+
+        updateModalCheckArea();
+        modal.classList.remove('hidden');
+        document.body.classList.add('modal-open');
     }
 
     // モーダル内の進捗＆ボタン同期制御

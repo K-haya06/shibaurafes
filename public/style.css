@@ -6,6 +6,12 @@ body {
     color: #333;
 }
 
+/* ★ モーダル表示時に背景のスクロールを完全に止めるクラス */
+body.modal-open {
+    overflow: hidden !important;
+    height: 100vh;
+}
+
 header {
     display: flex;
     justify-content: space-between;
@@ -54,6 +60,9 @@ h1 {
     gap: 8px;
     margin-bottom: 16px;
     align-items: center;
+    position: relative;
+    z-index: 1;
+    /* 重なり順を低めに設定 */
 }
 
 .search-box-container {
@@ -352,7 +361,8 @@ h1 {
     display: flex;
     justify-content: center;
     align-items: flex-end;
-    z-index: 1000;
+    z-index: 2000;
+    /* ★最前面へ引き上げ */
 }
 
 .modal.hidden {
@@ -374,16 +384,14 @@ h1 {
     width: 100%;
     max-width: 500px;
     max-height: 85vh;
-    /* 高さを最大85%にして画面外へのはみ出しを防ぐ */
     border-top-left-radius: 16px;
     border-top-right-radius: 16px;
     padding: 20px;
     box-sizing: border-box;
     overflow-y: auto;
-    /* スクロール可能に */
     -webkit-overflow-scrolling: touch;
-    /* スマホでの操作感を滑らかに */
-    z-index: 1001;
+    z-index: 2001;
+    /* ★最前面へ引き上げ */
     animation: slideUp 0.2s ease-out;
 }
 
@@ -397,7 +405,7 @@ h1 {
     }
 }
 
-/* ★ 閉じるボタン（×）と被り防止 */
+/* 閉じるボタン（×） */
 .close-btn {
     position: absolute;
     top: 12px;
@@ -410,19 +418,33 @@ h1 {
     z-index: 10;
 }
 
+/* ★ モーダルヘッダー（上下位置の整列） */
 .modal-header {
     margin-bottom: 15px;
     border-bottom: 1px solid #eee;
     padding-bottom: 10px;
     padding-right: 36px;
-    /* ★右側に余白を作り、×ボタンと文字が重ならないように調整 */
     display: flex;
     justify-content: space-between;
     align-items: center;
+    /* ★上下中央揃え */
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.modal-header>div {
+    display: flex;
+    align-items: center;
+    /* ★階数、教室名、担当者バッジの上下中央揃え */
+    flex-wrap: wrap;
+    gap: 6px;
 }
 
 .modal-header h2 {
     margin: 0;
+    font-size: 1.3rem;
+    line-height: 1;
+    display: inline-block;
 }
 
 .floor-badge {
@@ -430,18 +452,23 @@ h1 {
     color: white;
     font-size: 0.8rem;
     font-weight: bold;
-    padding: 2px 6px;
+    padding: 3px 8px;
     border-radius: 4px;
-    margin-right: 6px;
-    vertical-align: middle;
+    margin: 0;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
 }
 
 .group-tag {
     font-size: 0.8rem;
     color: #6c757d;
     background: #f1f3f5;
-    padding: 3px 8px;
+    padding: 4px 8px;
     border-radius: 4px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
 }
 
 .info-section {
@@ -633,7 +660,7 @@ select#modal-status-select {
     width: 100%;
     padding: 8px;
     font-size: 16px;
-    /* ★スマホで入力時に自動ズームしてしまうのを防ぐ16px */
+    /* スマホで自動ズームしない16px */
     border: 1px solid #ced4da;
     border-radius: 6px;
     box-sizing: border-box;
@@ -793,7 +820,7 @@ select#modal-status-select {
     display: none !important;
 }
 
-/* ★ スマホ画面向けのピンポイントレスポンシブ微調整 */
+/* ★ スマホ画面向けの縦並びレスポンシブ微調整 */
 @media (max-width: 600px) {
     .inline-inputs {
         flex-direction: column;
