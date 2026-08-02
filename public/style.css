@@ -53,12 +53,18 @@ h1 {
     display: flex;
     gap: 8px;
     margin-bottom: 16px;
+    align-items: center;
+}
+
+.search-box-container {
+    flex: 1;
 }
 
 #search-input {
-    flex: 1;
+    width: 100%;
     padding: 10px 14px;
-    font-size: 1rem;
+    font-size: 16px;
+    /* スマホ自動ズーム防止のために16px */
     box-sizing: border-box;
     border: 1px solid #ced4da;
     border-radius: 8px;
@@ -350,7 +356,7 @@ h1 {
 }
 
 .modal.hidden {
-    display: none;
+    display: none !important;
 }
 
 .modal-overlay {
@@ -367,12 +373,16 @@ h1 {
     background: white;
     width: 100%;
     max-width: 500px;
-    max-height: 88vh;
+    max-height: 85vh;
+    /* 高さを最大85%にして画面外へのはみ出しを防ぐ */
     border-top-left-radius: 16px;
     border-top-right-radius: 16px;
     padding: 20px;
     box-sizing: border-box;
     overflow-y: auto;
+    /* スクロール可能に */
+    -webkit-overflow-scrolling: touch;
+    /* スマホでの操作感を滑らかに */
     z-index: 1001;
     animation: slideUp 0.2s ease-out;
 }
@@ -387,6 +397,7 @@ h1 {
     }
 }
 
+/* ★ 閉じるボタン（×）と被り防止 */
 .close-btn {
     position: absolute;
     top: 12px;
@@ -396,12 +407,15 @@ h1 {
     font-size: 1.8rem;
     color: #888;
     cursor: pointer;
+    z-index: 10;
 }
 
 .modal-header {
     margin-bottom: 15px;
     border-bottom: 1px solid #eee;
     padding-bottom: 10px;
+    padding-right: 36px;
+    /* ★右側に余白を作り、×ボタンと文字が重ならないように調整 */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -618,7 +632,8 @@ select#modal-status-select {
 .edit-group input[type="number"] {
     width: 100%;
     padding: 8px;
-    font-size: 0.9rem;
+    font-size: 16px;
+    /* ★スマホで入力時に自動ズームしてしまうのを防ぐ16px */
     border: 1px solid #ced4da;
     border-radius: 6px;
     box-sizing: border-box;
@@ -760,7 +775,7 @@ select#modal-status-select {
     border: 1px solid #ced4da;
     border-radius: 6px;
     box-sizing: border-box;
-    font-size: 0.95rem;
+    font-size: 16px;
 }
 
 .error-msg {
@@ -774,26 +789,20 @@ select#modal-status-select {
     display: none;
 }
 
-.controls-container {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
-    align-items: center;
-}
-
-.search-box-container {
-    flex: 1;
-}
-
-#search-input {
-    width: 100%;
-    padding: 10px 14px;
-    font-size: 1rem;
-    box-sizing: border-box;
-    border: 1px solid #ced4da;
-    border-radius: 8px;
-}
-
 .hidden {
     display: none !important;
+}
+
+/* ★ スマホ画面向けのピンポイントレスポンシブ微調整 */
+@media (max-width: 600px) {
+    .inline-inputs {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+    }
+
+    .inline-inputs .arrow {
+        text-align: center;
+        transform: rotate(90deg);
+    }
 }

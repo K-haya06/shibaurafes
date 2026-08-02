@@ -346,6 +346,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modal.classList.remove('hidden');
     }
 
+    // モーダル内の進捗＆ボタン同期制御
     function updateModalCheckArea() {
         if (!currentSelectedRoom) return;
         const stepIdx = getCurrentStepIndex(currentSelectedRoom);
@@ -360,12 +361,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         valAssignedUser.textContent = assigneeStr || '未登録';
 
+        // 委員会アカウントの場合のみボタンの表示制御（団体側は非表示）
         if (!isGroupUser()) {
             const isMeAssigned = assignees.includes(activeUser);
-            modalClaimBtn.classList.remove('hidden');
+
             if (isMeAssigned) {
+                // 自分が担当中の場合 ➔ 「担当を外す」ボタンだけを表示
+                modalClaimBtn.classList.add('hidden');
                 modalUnclaimBtn.classList.remove('hidden');
             } else {
+                // まだ自分が担当していない場合 ➔ 「自分が担当する」ボタンだけを表示
+                modalClaimBtn.classList.remove('hidden');
                 modalUnclaimBtn.classList.add('hidden');
             }
         }
