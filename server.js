@@ -65,30 +65,39 @@ async function appendLog(roomName, userName, itemKey, oldValue, newValue, note) 
     }
 }
 
-// --- ログイン API ---
+// --- ログイン API（新しいシート配列対応版） ---
+// 列構成: A:ID / B:ユーザー名 / C:パスワード / D:パスワードハッシュ / E:役割 / F:教室名 / G:有効
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
 
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: process.env.SPREADSHEET_ID,
-            range: "'ユーザー'!A2:E",
+            range: "'ユーザー'!A2:G", // A列からG列まで取得
         });
 
         const rows = response.data.values || [];
-        const user = rows.find(row => row[0] === username && row[1] === password);
+
+        // ユーザー名(B列=index 1)とパスワード(C列=index 2)を照合し、アカウントが有効か確認
+        const user = rows.find(row => {
+            const dbUser = (row[1] || '').trim();
+            const dbPass = (row[2] || '').trim();
+            const isActive = row[6] !== undefined && row[6] !== '' && row[6] !== 'FALSE' && row[6] !== '0';
+            
+            return dbUser === username.trim() && dbPass === password.trim() && isActive;
+        });
 
         if (user) {
             res.json({
                 success: true,
                 user: {
-                    username: user[0],
-                    role: user[2] || '一般',
-                    assignedRoom: user[3] || ''
+                    username: user[1],          // B列: ユーザー名
+                    role: user[4] || '一般',    // E列: 役割
+                    assignedRoom: user[5] || '' // F列: 教室名
                 }
             });
         } else {
-            res.json({ success: false, message: 'ユーザー名またはパスワードが正しくありません' });
+            res.json({ success: false, message: 'ユーザー名またはパスワードが正しくないか、アカウントが無効です' });
         }
     } catch (error) {
         console.error('ログインAPIエラー:', error);
