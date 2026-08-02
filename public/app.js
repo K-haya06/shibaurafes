@@ -479,35 +479,50 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ステータス変更時
+    // ステータス変更時（進捗更新 ＋ ログ保存）
     modalStatusSelect.addEventListener('change', async (e) => {
         if (!currentSelectedRoom || !currentUser || isGroupUser()) return;
 
         const newVal = e.target.value;
         const stepIdx = getCurrentStepIndex(currentSelectedRoom);
         const step = checkSteps[stepIdx];
+        const oldVal = currentSelectedRoom[step.key] || '未実施';
 
-        currentSelectedRoom[step.key] = newVal;
+        if (oldVal === newVal) return; // 変更がなければ処理しない
 
-        await fetch('/api/update', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                rowIndex: currentSelectedRoom.rowIndex,
-                roomName: currentSelectedRoom['教室名'],
-                columnName: step.key,
-                value: newVal,
-                userName: currentUser.username
-            })
-        });
+        try {
+            modalStatusSelect.disabled = true;
 
-        if (newVal === '完了') delete currentSelectedRoom._currentStepIndex;
+            // APIに更新依頼（旧値・新値・操作者名を送信）
+            const res = await fetch('/api/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    rowIndex: currentSelectedRoom.rowIndex,
+                    roomName: currentSelectedRoom['教室名'],
+                    columnName: step.key,
+                    value: newVal,
+                    userName: currentUser.username
+                })
+            });
 
-        await fetchData();
-        const updatedRoom = classroomData.find(r => r.rowIndex === currentSelectedRoom.rowIndex);
-        if (updatedRoom) openModal(updatedRoom);
+            const result = await res.json();
+            if (result.success) {
+                currentSelectedRoom[step.key] = newVal;
+                if (newVal === '完了') delete currentSelectedRoom._currentStepIndex;
+
+                await fetchData();
+                const updatedRoom = classroomData.find(r => r.rowIndex === currentSelectedRoom.rowIndex);
+                if (updatedRoom) openModal(updatedRoom); // ログ表示を再読み込みして即時更新
+            } else {
+                alert('進捗の更新に失敗しました');
+            }
+        } catch (err) {
+            alert('通信エラーが発生しました');
+        } finally {
+            modalStatusSelect.disabled = false;
+        }
     });
-
     // 数量更新ボタン
     saveQtyBtn.addEventListener('click', async () => {
         if (!currentSelectedRoom || !currentUser || isGroupUser()) return;
