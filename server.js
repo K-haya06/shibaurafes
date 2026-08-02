@@ -89,7 +89,7 @@ app.get('/api/classrooms', async (req, res) => {
     try {
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: process.env.SPREADSHEET_ID,
-            range: "'管理データ'!A1:Z100",
+            range: "'管理データ'!A1:AC100",
         });
 
         const rows = response.data.values;
@@ -122,7 +122,7 @@ app.post('/api/update', async (req, res) => {
         // ヘッダー情報を取得
         const headersResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: process.env.SPREADSHEET_ID,
-            range: "'管理データ'!A1:Z1",
+            range: "'管理データ'!A1:AC1",
         });
         const headers = headersResponse.data.values[0];
         const assigneeColIdx = headers.indexOf('担当者');
@@ -139,7 +139,7 @@ app.post('/api/update', async (req, res) => {
                 // ★ 1. スプレッドシート全行を取得し、該当ユーザーがすでに担当している他の教室があれば全解除
                 const allRowsResponse = await sheets.spreadsheets.values.get({
                     spreadsheetId: process.env.SPREADSHEET_ID,
-                    range: "'管理データ'!A2:Z100",
+                    range: "'管理データ'!A2:AC100",
                 });
                 const allRows = allRowsResponse.data.values || [];
 
@@ -166,7 +166,7 @@ app.post('/api/update', async (req, res) => {
                 // ★ 2. 今回選択した教室に改めて自分を追加
                 const targetRoomResponse = await sheets.spreadsheets.values.get({
                     spreadsheetId: process.env.SPREADSHEET_ID,
-                    range: `'管理データ'!A${targetRowIndex}:Z${targetRowIndex}`,
+                    range: `'管理データ'!A${targetRowIndex}:AC${targetRowIndex}`,
                 });
                 const targetRowData = targetRoomResponse.data.values ? targetRoomResponse.data.values[0] : [];
                 const targetAssigneeStr = targetRowData[assigneeColIdx] || '';
@@ -187,7 +187,7 @@ app.post('/api/update', async (req, res) => {
                 // 担当解除処理
                 const targetRoomResponse = await sheets.spreadsheets.values.get({
                     spreadsheetId: process.env.SPREADSHEET_ID,
-                    range: `'管理データ'!A${targetRowIndex}:Z${targetRowIndex}`,
+                    range: `'管理データ'!A${targetRowIndex}:AC${targetRowIndex}`,
                 });
                 const targetRowData = targetRoomResponse.data.values ? targetRoomResponse.data.values[0] : [];
                 const currentAssigneesStr = targetRowData[assigneeColIdx] || '';
@@ -211,7 +211,7 @@ app.post('/api/update', async (req, res) => {
 
             const roomResponse = await sheets.spreadsheets.values.get({
                 spreadsheetId: process.env.SPREADSHEET_ID,
-                range: `'管理データ'!A${targetRowIndex}:Z${targetRowIndex}`,
+                range: `'管理データ'!A${targetRowIndex}:AC${targetRowIndex}`,
             });
             const rowData = roomResponse.data.values ? roomResponse.data.values[0] : [];
             const oldValue = rowData[targetColIndex] || '未実施';
@@ -244,7 +244,7 @@ app.post('/api/update', async (req, res) => {
         // ヘッダー情報を取得
         const headersResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: process.env.SPREADSHEET_ID,
-            range: "'管理データ'!A1:Z1",
+            range: "'管理データ'!A1:AC1",
         });
         const headers = headersResponse.data.values[0];
         const assigneeColIdx = headers.indexOf('担当者');
@@ -252,7 +252,7 @@ app.post('/api/update', async (req, res) => {
         // 対象教室の現在の行データを取得
         const roomResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: process.env.SPREADSHEET_ID,
-            range: `'管理データ'!A${rowIndex}:Z${rowIndex}`,
+            range: `'管理データ'!A${rowIndex}:AC${rowIndex}`,
         });
         const rowData = roomResponse.data.values ? roomResponse.data.values[0] : [];
 
@@ -268,7 +268,7 @@ app.post('/api/update', async (req, res) => {
                 // ★ 1. 他の教室で担当になっている場所があれば、事前に解除する
                 const allRowsResponse = await sheets.spreadsheets.values.get({
                     spreadsheetId: process.env.SPREADSHEET_ID,
-                    range: "'管理データ'!A2:Z100",
+                    range: "'管理データ'!A2:AC100",
                 });
                 const allRows = allRowsResponse.data.values || [];
 

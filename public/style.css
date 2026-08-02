@@ -266,6 +266,16 @@ h1 {
     margin-top: 10px;
 }
 
+.card-anteroom-text {
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: #d9480f;
+    background-color: #fff4e6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
 /* ステータスバッジ */
 .status-badge {
     font-weight: bold;
@@ -820,6 +830,30 @@ select#modal-status-select {
     display: none !important;
 }
 
+/* --- 控え室表示バッジ・スタイル --- */
+.anteroom-info {
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: #d9480f;
+    background-color: #fff4e6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.anteroom-badge {
+    font-size: 0.8rem;
+    font-weight: bold;
+    background-color: #fff4e6;
+    color: #d9480f;
+    border: 1px solid #ffd8a8;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 6px;
+    display: inline-flex;
+    align-items: center;
+}
+
 /* ★ スマホ画面向けの縦並びレスポンシブ微調整 */
 @media (max-width: 600px) {
     .inline-inputs {
@@ -842,7 +876,10 @@ select#modal-status-select {
 /* --- PC表示（画面幅 768px 以上）の時だけモーダル幅を広くする --- */
 @media (min-width: 768px) {
     .modal-content {
-        max-width: 700px;/* ★デフォルトの 500px から 700px に拡張 */
-        padding: 28px;/* 内側の余白も少しゆったりさせる */
+        max-width: 700px;
+        /* ★デフォルトの 500px から 700px に拡張 */
+        padding: 28px;
+        /* 内側の余白も少しゆったりさせる */
     }
 }
+

@@ -44,11 +44,13 @@
 
             <div class="modal-header">
                 <div>
-                    <span id="modal-floor" class="floor-badge">1F</span>
-                    <h2 id="modal-title" style="display:inline;">101教室</h2>
-                    <span id="modal-assignee-badge" class="assignee-badge">👤 未担当</span>
+                    <span class="floor-badge" id="modal-floor">1F</span>
+                    <h2 id="modal-room-name">101教室</h2>
+                    <span class="assignee-badge" id="modal-assignee">未割り当て</span>
+                    <!-- ★ 控え室表示エリア（JSで値がある時のみ表示） -->
+                    <span id="modal-anteroom-info" class="anteroom-badge hidden"></span>
                 </div>
-                <span id="modal-group" class="group-tag">サークル名</span>
+                <span class="group-tag" id="modal-group-name">団体名</span>
             </div>
 
             <div class="modal-body">
