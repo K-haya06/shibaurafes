@@ -952,6 +952,18 @@ h1 {
     .modal-content {
         padding-bottom: 120px;
     }
+    floor-container.size-sm .card-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 6px;
+    }
+    
+    .floor-container.size-sm .room-card {
+        padding: 6px;
+    }
+
+    .floor-container.size-sm .group-name {
+        max-width: 70px;
+    }
 }
 
 @media (min-width: 768px) {
