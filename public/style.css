@@ -121,47 +121,52 @@ h1 {
     gap: 12px;
 }
 
-/* --- カードサイズ：小 (size-sm) --- */
+/* ★ カードサイズ：小 (size-sm) PCでは複数列、スマホでは自動2列 ★ */
 .floor-container.size-sm .card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
     gap: 8px;
 }
 
 .floor-container.size-sm .room-card {
-    padding: 10px;
+    padding: 8px;
+    min-width: 0;
 }
 
 .floor-container.size-sm .room-title {
-    font-size: 1rem;
+    font-size: 0.95rem;
 }
 
 .floor-container.size-sm .group-name {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     padding: 1px 4px;
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .floor-container.size-sm .card-detail-rows {
-    font-size: 0.75rem;
-    padding: 6px;
+    font-size: 0.72rem;
+    padding: 4px 6px;
 }
 
 .floor-container.size-sm .status-badge {
-    font-size: 0.7rem;
-    padding: 2px 6px;
+    font-size: 0.68rem;
+    padding: 2px 4px;
 }
 
 /* --- カードサイズ：中 (size-md) デフォルト --- */
 .floor-container.size-md .card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 14px;
 }
 
 .floor-container.size-md .room-card {
-    padding: 16px;
+    padding: 14px;
 }
 
 .floor-container.size-md .room-title {
-    font-size: 1.25rem;
+    font-size: 1.15rem;
 }
 
 .floor-container.size-md .group-name {
@@ -170,17 +175,17 @@ h1 {
 
 /* --- カードサイズ：大 (size-lg) --- */
 .floor-container.size-lg .card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
     gap: 18px;
 }
 
 .floor-container.size-lg .room-card {
-    padding: 20px;
+    padding: 18px;
     border-width: 2px;
 }
 
 .floor-container.size-lg .room-title {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
 }
 
 .floor-container.size-lg .group-name {
@@ -189,8 +194,8 @@ h1 {
 }
 
 .floor-container.size-lg .card-detail-rows {
-    font-size: 0.95rem;
-    padding: 10px;
+    font-size: 0.9rem;
+    padding: 8px 10px;
 }
 
 .floor-container.size-lg .status-badge {
@@ -229,37 +234,50 @@ h1 {
     padding: 2px 8px;
 }
 
-/* ★ カード内詳細エリア（「:」を縦一列に整列させるグリッド構造） */
+/* ★ カード内詳細エリア（自然なインライン流し＆「:」揃え） ★ */
 .card-detail-rows {
-    margin-top: 10px;
-    font-size: 0.85rem;
+    margin-top: 8px;
+    font-size: 0.82rem;
     color: #495057;
     background: #f8f9fa;
-    padding: 8px 10px;
+    padding: 6px 8px;
     border-radius: 6px;
 }
 
 .card-detail-item {
-    display: grid;
-    grid-template-columns: 3.2em auto 1fr;
-    /* ラベル / コロン / 移動先＆数量 */
+    display: flex;
     align-items: center;
     gap: 4px;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
     white-space: nowrap;
+    overflow: hidden;
 }
 
 .card-detail-item:last-child {
     margin-bottom: 0;
 }
 
-.card-detail-item .colon {
-    text-align: center;
-    font-weight: bold;
-    color: #6c757d;
+.card-detail-item .label-title {
+    display: inline-block;
+    width: 2.8em; /* 机α・机β・椅子 で幅を一定にしてコロン位置を揃える */
 }
 
-/* カード内の移動先テキスト（長すぎる場合は「...」で自動省略） */
+.card-detail-item .colon {
+    font-weight: bold;
+    color: #6c757d;
+    margin-right: 2px;
+}
+
+.card-detail-item .item-value-box {
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+/* 移動先テキスト（あふれたら「...」） */
 .dest-text {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -268,21 +286,24 @@ h1 {
     color: #1971c2;
 }
 
+/* 数量表示（移動先のすぐ後ろに自然に配置） */
 .num-move-unit {
     color: #d9480f;
     font-weight: bold;
     margin-left: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .card-body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 10px;
+    margin-top: 8px;
 }
 
 .card-anteroom-text {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: bold;
     color: #d9480f;
     background-color: #fff4e6;
@@ -295,8 +316,8 @@ h1 {
 .status-badge {
     font-weight: bold;
     border-radius: 12px;
-    font-size: 0.8rem;
-    padding: 4px 10px;
+    font-size: 0.78rem;
+    padding: 3px 8px;
 }
 
 .status-badge[data-status="未実施"],
@@ -335,14 +356,14 @@ h1 {
 
 /* 担当者バッジ */
 .assignee-badge {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: bold;
-    padding: 2px 8px;
+    padding: 2px 6px;
     border-radius: 12px;
     background-color: #e7f5ff;
     color: #1971c2;
     border: 1px solid #a5d8ff;
-    margin-left: 6px;
+    margin-left: 4px;
     display: inline-flex;
     align-items: center;
 }
@@ -362,7 +383,7 @@ h1 {
     border-radius: 4px;
     cursor: pointer;
     font-weight: bold;
-    margin-left: 6px;
+    margin-left: 4px;
 }
 
 .claim-card-btn:hover {
@@ -465,7 +486,7 @@ h1 {
     gap: 8px;
 }
 
-.modal-header>div {
+.modal-header > div {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -584,7 +605,7 @@ h1 {
     background: #138496;
 }
 
-/* ★ モーダル内 机椅子テーブル（文字サイズ拡大 ＆ 内訳改行対応） */
+/* モーダル内 机椅子テーブル */
 .detail-table {
     width: 100%;
     border-collapse: collapse;
@@ -718,7 +739,7 @@ h1 {
     gap: 8px;
 }
 
-.inline-inputs>div {
+.inline-inputs > div {
     flex: 1;
 }
 
