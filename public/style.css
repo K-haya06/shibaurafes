@@ -952,13 +952,36 @@ h1 {
     .modal-content {
         padding-bottom: 120px;
     }
-    floor-container.size-sm .card-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
-        gap: 6px;
+    .floor-container.size-sm .card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important; /* minmax(0, 1fr) で溢れ防止 */
+        gap: 6px !important;
     }
-    
+
     .floor-container.size-sm .room-card {
-        padding: 6px;
+        padding: 6px 4px !important; /* カード内部の余白を削って幅を確保 */
+        min-width: 0 !important;
+    }
+
+    .floor-container.size-sm .group-name {
+        max-width: 55px !important; /* 団体名の幅をiPhone mini用に調整 */
+        font-size: 0.65rem !important;
+    }
+
+    .floor-container.size-sm .card-detail-rows {
+        padding: 4px !important;
+        font-size: 0.7rem !important;
+    }
+
+    .floor-container.size-sm .card-detail-item {
+        gap: 1px !important; /* 間隔を詰めて改行・押し出しを防止 */
+    }
+
+    .floor-container.size-sm .card-detail-item .label-title {
+        width: 2.2em !important; /* ラベル幅を詰める */
+    }
+
+    .floor-container.size-sm .text-particle {
+        margin: 0 1px !important;
     }
 
     .floor-container.size-sm .group-name {
