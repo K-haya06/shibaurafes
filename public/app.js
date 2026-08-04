@@ -60,9 +60,16 @@ document.addEventListener('DOMContentLoaded', () => {
         { key: '片付け_3次チェック', name: '片付け 3次' }
     ];
 
+    // 団体ユーザー判定
     function isGroupUser() {
         if (!currentUser) return true;
         return currentUser.role === '団体責任者' || currentUser.role === '団体副責任者';
+    }
+
+    // ゲストユーザー判定（閲覧専用アカウント）
+    function isGuestUser() {
+        if (!currentUser) return false;
+        return currentUser.role === 'ゲスト';
     }
 
     function checkLoginState() {
@@ -246,14 +253,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 let assigneeHtml = '';
                 if (assignee) {
                     assigneeHtml = `<span class="assignee-badge">👤 ${assignee}</span>`;
-                } else if (!isGroupUser()) {
+                } else if (!isGroupUser() && !isGuestUser()) {
                     assigneeHtml = `<button class="claim-card-btn">＋担当する</button>`;
                 }
 
                 const card = document.createElement('div');
                 card.className = 'room-card';
 
-                // ★ 完全左詰め文章表記（右寄せ固定を完全廃止）
                 card.innerHTML = `
                     <div class="card-header">
                         <div class="room-title-area">
@@ -299,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (claimBtn) {
                     claimBtn.addEventListener('click', async (e) => {
                         e.stopPropagation();
-                        if (!currentUser || isGroupUser()) return;
+                        if (!currentUser || isGroupUser() || isGuestUser()) return;
                         const stepIdx = getCardDefaultStepIndex(item);
                         const step = checkSteps[stepIdx];
 
@@ -456,17 +462,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setSafeText('val-remarks', item['備考'] || 'なし');
 
-        if (isGroupUser()) {
+        const qtyEditBoxes = document.querySelectorAll('.qty-edit-box');
+
+        // ★ 団体ユーザーまたは「ゲスト」の場合、進捗更新・担当登録ボタン類を隠す
+        if (isGroupUser() || isGuestUser()) {
             if (quickStatusActions) quickStatusActions.classList.add('hidden');
             if (modalClaimBtn) modalClaimBtn.classList.add('hidden');
             if (modalUnclaimBtn) modalUnclaimBtn.classList.add('hidden');
 
-            if (adminDivider) adminDivider.classList.add('hidden');
-            if (adminFeatureAccordion) adminFeatureAccordion.classList.add('hidden');
+            // 編集フォーム（手動変更・移動先変更）のみ隠す
+            qtyEditBoxes.forEach(box => box.classList.add('hidden'));
+
+            // 団体ユーザーのみアコーディオン全体を隠し、ゲストユーザーはアコーディオン（ログ）を表示
+            if (isGroupUser()) {
+                if (adminDivider) adminDivider.classList.add('hidden');
+                if (adminFeatureAccordion) adminFeatureAccordion.classList.add('hidden');
+            } else if (isGuestUser()) {
+                if (adminDivider) adminDivider.classList.remove('hidden');
+                if (adminFeatureAccordion) adminFeatureAccordion.classList.remove('hidden');
+                await fetchLogs(item['教室名']);
+            }
         } else {
             if (quickStatusActions) quickStatusActions.classList.remove('hidden');
+            if (modalClaimBtn) modalClaimBtn.classList.remove('hidden');
+            if (modalUnclaimBtn) modalUnclaimBtn.classList.remove('hidden');
+
             if (adminDivider) adminDivider.classList.remove('hidden');
             if (adminFeatureAccordion) adminFeatureAccordion.classList.remove('hidden');
+            qtyEditBoxes.forEach(box => box.classList.remove('hidden'));
 
             updateOldValueDisplay();
             await fetchLogs(item['教室名']);
@@ -497,7 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateAssigneeUI(assigneeStr);
 
-        if (!isGroupUser()) {
+        if (!isGroupUser() && !isGuestUser()) {
             const isMeAssigned = assignees.includes(activeUser);
 
             if (isMeAssigned) {
@@ -537,7 +560,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (quickStatusActions) {
         quickStatusActions.querySelectorAll('.btn-action').forEach(btn => {
             btn.addEventListener('click', async (e) => {
-                if (!currentSelectedRoom || !currentUser || isGroupUser()) return;
+                if (!currentSelectedRoom || !currentUser || isGroupUser() || isGuestUser()) return;
 
                 const targetVal = e.target.getAttribute('data-val');
                 const step = checkSteps[currentStepIndex];
@@ -577,7 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (modalClaimBtn) {
         modalClaimBtn.addEventListener('click', async () => {
-            if (!currentSelectedRoom || !currentUser || isGroupUser()) return;
+            if (!currentSelectedRoom || !currentUser || isGroupUser() || isGuestUser()) return;
             const step = checkSteps[currentStepIndex];
 
             try {
@@ -612,7 +635,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (modalUnclaimBtn) {
         modalUnclaimBtn.addEventListener('click', async () => {
-            if (!currentSelectedRoom || !currentUser || isGroupUser()) return;
+            if (!currentSelectedRoom || !currentUser || isGroupUser() || isGuestUser()) return;
             const step = checkSteps[currentStepIndex];
 
             try {
@@ -645,6 +668,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ★ ゲストユーザーでもログを取得できるようにガードを解除
     async function fetchLogs(roomName) {
         if (isGroupUser() || !logList) return;
         logList.innerHTML = '<li class="empty-log">読み込み中...</li>';
@@ -680,7 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (saveQtyBtn) {
         saveQtyBtn.addEventListener('click', async () => {
-            if (!currentSelectedRoom || !currentUser || isGroupUser()) return;
+            if (!currentSelectedRoom || !currentUser || isGroupUser() || isGuestUser()) return;
 
             const selectedKey = editItemKey.value;
             const oldValue = parseInt(editOldVal.value || 0, 10);
@@ -781,7 +805,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (saveDestBtn) {
         saveDestBtn.addEventListener('click', async () => {
-            if (!currentSelectedRoom || !currentUser || isGroupUser()) return;
+            if (!currentSelectedRoom || !currentUser || isGroupUser() || isGuestUser()) return;
 
             const targetItem = document.getElementById('edit-dest-item-key').value;
             const newDestName = document.getElementById('edit-new-dest-name').value.trim();
