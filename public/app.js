@@ -5,6 +5,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchBoxContainer = document.getElementById('search-box-container');
     const searchInput = document.getElementById('search-input');
 
+    const searchToggleBtn = document.getElementById('search-toggle-btn');
+    const searchBarWrapper = document.getElementById('search-bar-wrapper');
+    const searchClearBtn = document.getElementById('search-clear-btn');
+    const searchCloseBtn = document.getElementById('search-close-btn');
+
     // ログイン関連要素
     const loginModal = document.getElementById('login-modal');
     const loginForm = document.getElementById('login-form');
@@ -60,13 +65,11 @@ document.addEventListener('DOMContentLoaded', () => {
         { key: '片付け_3次チェック', name: '片付け 3次' }
     ];
 
-    // 団体ユーザー判定
     function isGroupUser() {
         if (!currentUser) return true;
         return currentUser.role === '団体責任者' || currentUser.role === '団体副責任者';
     }
 
-    // ゲストユーザー判定（閲覧専用アカウント）
     function isGuestUser() {
         if (!currentUser) return false;
         return currentUser.role === 'ゲスト';
@@ -325,7 +328,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
 
-                card.addEventListener('click', () => openModal(item));
+                // ★ タップされた各カードごとの画面上の絶対位置を計算してモーダルに送る
+                card.addEventListener('click', (e) => {
+                    const rect = card.getBoundingClientRect();
+                    const originX = rect.left + rect.width / 2;
+                    const originY = rect.top + rect.height / 2;
+
+                    const modalContent = document.querySelector('.modal-content');
+                    if (modalContent) {
+                        modalContent.style.setProperty('--card-x', `${originX}px`);
+                        modalContent.style.setProperty('--card-y', `${originY}px`);
+                    }
+
+                    openModal(item);
+                });
+
                 cardGrid.appendChild(card);
             });
 
@@ -374,7 +391,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return destStr.replace(/,\s*/g, '<br>');
     }
 
-    // --- 3. 詳細モーダル表示 ---
     async function openModal(item) {
         currentSelectedRoom = item;
         currentStepIndex = getCardDefaultStepIndex(item);
@@ -464,16 +480,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const qtyEditBoxes = document.querySelectorAll('.qty-edit-box');
 
-        // ★ 団体ユーザーまたは「ゲスト」の場合、進捗更新・担当登録ボタン類を隠す
         if (isGroupUser() || isGuestUser()) {
             if (quickStatusActions) quickStatusActions.classList.add('hidden');
             if (modalClaimBtn) modalClaimBtn.classList.add('hidden');
             if (modalUnclaimBtn) modalUnclaimBtn.classList.add('hidden');
 
-            // 編集フォーム（手動変更・移動先変更）のみ隠す
             qtyEditBoxes.forEach(box => box.classList.add('hidden'));
 
-            // 団体ユーザーのみアコーディオン全体を隠し、ゲストユーザーはアコーディオン（ログ）を表示
             if (isGroupUser()) {
                 if (adminDivider) adminDivider.classList.add('hidden');
                 if (adminFeatureAccordion) adminFeatureAccordion.classList.add('hidden');
@@ -668,7 +681,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ★ ゲストユーザーでもログを取得できるようにガードを解除
     async function fetchLogs(roomName) {
         if (isGroupUser() || !logList) return;
         logList.innerHTML = '<li class="empty-log">読み込み中...</li>';
@@ -928,10 +940,46 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    if (searchInput) {
-        searchInput.addEventListener('input', () => {
-            renderFilteredCards();
+    if (searchToggleBtn && searchBarWrapper) {
+        searchToggleBtn.addEventListener('click', () => {
+            searchToggleBtn.classList.add('hidden');
+            searchBarWrapper.classList.remove('hidden');
+            if (searchInput) searchInput.focus();
         });
+
+        if (searchCloseBtn) {
+            searchCloseBtn.addEventListener('click', () => {
+                if (searchInput) searchInput.value = '';
+                if (searchClearBtn) searchClearBtn.classList.add('hidden');
+                searchBarWrapper.classList.add('hidden');
+                searchToggleBtn.classList.remove('hidden');
+                renderFilteredCards();
+            });
+        }
+
+        if (searchClearBtn) {
+            searchClearBtn.addEventListener('click', () => {
+                if (searchInput) {
+                    searchInput.value = '';
+                    searchInput.focus();
+                }
+                searchClearBtn.classList.add('hidden');
+                renderFilteredCards();
+            });
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                if (searchClearBtn) {
+                    if (searchInput.value.trim().length > 0) {
+                        searchClearBtn.classList.remove('hidden');
+                    } else {
+                        searchClearBtn.classList.add('hidden');
+                    }
+                }
+                renderFilteredCards();
+            });
+        }
     }
 
     if (refreshBtn) refreshBtn.addEventListener('click', fetchData);

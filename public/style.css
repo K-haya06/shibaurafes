@@ -1,9 +1,10 @@
+/* ベース背景（クリーンで明るいグレー） */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     margin: 0;
     padding: 12px;
-    background-color: #f4f6f8;
-    color: #333;
+    background-color: #f0f2f5;
+    color: #2c3e50;
 }
 
 /* モーダル表示時に背景のスクロールを止める */
@@ -34,6 +35,7 @@ h1 {
     border-radius: 6px;
     font-weight: bold;
     cursor: pointer;
+    box-shadow: 2px 2px 5px rgba(166, 180, 200, 0.3), -2px -2px 5px #ffffff;
 }
 
 /* --- ヘッダー操作者選択 --- */
@@ -66,6 +68,8 @@ h1 {
 
 .search-box-container {
     flex: 1;
+    display: flex;
+    align-items: center;
 }
 
 #search-input {
@@ -75,6 +79,8 @@ h1 {
     box-sizing: border-box;
     border: 1px solid #ced4da;
     border-radius: 8px;
+    background: #ffffff;
+    box-shadow: inset 2px 2px 4px rgba(180, 190, 210, 0.2);
 }
 
 .size-selector {
@@ -213,7 +219,6 @@ h1 {
 
 .floor-container.size-lg .room-card {
     padding: 18px;
-    border-width: 2px;
 }
 
 .floor-container.size-lg .room-title {
@@ -239,18 +244,27 @@ h1 {
     padding: 6px 14px;
 }
 
-/* 共通カードスタイル */
+/* ★ スッキリ見やすいマイルド・ニューモフィズムカード ★ */
 .room-card {
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 5px 5px 12px rgba(166, 180, 200, 0.25),
+                -5px -5px 12px rgba(255, 255, 255, 0.8);
     cursor: pointer;
-    border: 1px solid #e9ecef;
-    transition: transform 0.1s;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.room-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 8px 8px 18px rgba(166, 180, 200, 0.35),
+                -8px -8px 18px rgba(255, 255, 255, 0.9);
 }
 
 .room-card:active {
-    transform: scale(0.98);
+    transform: translateY(0);
+    box-shadow: 2px 2px 6px rgba(166, 180, 200, 0.2),
+                -2px -2px 6px rgba(255, 255, 255, 0.7);
 }
 
 .card-header {
@@ -278,14 +292,16 @@ h1 {
     white-space: nowrap;
 }
 
-/* ★ 完全左詰めの自然な一続き文章スタイル ★ */
+/* ★ 明るい背景 ＆ 内側のへこみデザイン詳細枠 ★ */
 .card-detail-rows {
     margin-top: 8px;
     font-size: 0.82rem;
     color: #495057;
-    background: #f8f9fa;
-    padding: 6px 8px;
-    border-radius: 6px;
+    background: #f7f9fc;
+    padding: 8px 10px;
+    border-radius: 10px;
+    box-shadow: inset 2px 2px 4px rgba(180, 190, 210, 0.25),
+                inset -2px -2px 4px #ffffff;
 }
 
 .card-detail-item {
@@ -313,7 +329,6 @@ h1 {
     flex-shrink: 0;
 }
 
-/* 移動先テキスト（あふれたらその場所で「...」） */
 .dest-text {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -452,7 +467,7 @@ h1 {
     display: none;
 }
 
-/* --- モーダル（ポップアップ） --- */
+/* --- モーダル（ポップアップ・ニューモフィズム対応） --- */
 .modal {
     position: fixed;
     top: 0;
@@ -461,7 +476,7 @@ h1 {
     height: 100vh;
     display: flex;
     justify-content: center;
-    align-items: flex-end;
+    align-items: center;
     z-index: 2000;
 }
 
@@ -475,23 +490,49 @@ h1 {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(44, 62, 80, 0.35);
+    backdrop-filter: blur(4px);
+    animation: fadeInOverlay 0.2s ease-out;
+}
+
+@keyframes fadeInOverlay {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 .modal-content {
     position: relative;
-    background: white;
-    width: 100%;
+    background: #ffffff;
+    width: 90%;
     max-width: 500px;
     max-height: 85vh;
-    border-top-left-radius: 16px;
-    border-top-right-radius: 16px;
-    padding: 20px;
+    border-radius: 20px;
+    padding: 24px 20px;
     box-sizing: border-box;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     z-index: 2001;
-    animation: slideUp 0.2s ease-out;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 10px 30px rgba(166, 180, 200, 0.35);
+    
+    /* 押したカードの中心位置（--card-x, --card-y）からダイナミックに拡大 */
+    transform-origin: calc(var(--card-x, 50vw) - (100vw - 100%) / 2) calc(var(--card-y, 50vh) - (100vh - 85vh) / 2);
+    animation: zoomFromCard 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes zoomFromCard {
+    from {
+        opacity: 0;
+        transform: scale(0.15);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 @keyframes slideUp {
@@ -506,21 +547,34 @@ h1 {
 
 .close-btn {
     position: absolute;
-    top: 12px;
-    right: 16px;
-    background: none;
+    top: 14px;
+    right: 18px;
+    background: #f7f9fc;
     border: none;
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     color: #888;
     cursor: pointer;
     z-index: 10;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 3px 3px 6px rgba(180, 190, 210, 0.3),
+                -3px -3px 6px #ffffff;
+}
+
+.close-btn:active {
+    box-shadow: inset 2px 2px 4px rgba(180, 190, 210, 0.3),
+                inset -2px -2px 4px #ffffff;
 }
 
 .modal-header {
-    margin-bottom: 15px;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
-    padding-right: 36px;
+    margin-bottom: 18px;
+    border-bottom: 1px dashed #ced4da;
+    padding-bottom: 12px;
+    padding-right: 40px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -576,13 +630,22 @@ h1 {
     color: #495057;
 }
 
+.info-grid-2col,
+.check-control-box,
+.sub-feature-accordion,
+.edit-grid {
+    background: #f7f9fc !important;
+    border-radius: 12px !important;
+    border: none !important;
+    box-shadow: inset 2px 2px 5px rgba(180, 190, 210, 0.25),
+                inset -2px -2px 5px #ffffff !important;
+}
+
 .info-grid-2col {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
-    background: #f8f9fa;
-    padding: 10px 12px;
-    border-radius: 8px;
+    padding: 12px 14px;
     font-size: 0.85rem;
 }
 
@@ -590,11 +653,8 @@ h1 {
     margin: 0;
 }
 
-/* 進捗チェックコントロール */
 .check-control-box {
-    background: #f1f3f5;
-    padding: 12px;
-    border-radius: 8px;
+    padding: 12px 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -611,14 +671,60 @@ h1 {
     font-size: 0.9rem;
 }
 
+.back-btn,
+.claim-btn,
+.save-btn {
+    border: none !important;
+    border-radius: 8px !important;
+    transition: all 0.15s ease;
+    box-shadow: 2px 2px 5px rgba(166, 180, 200, 0.3),
+                -2px -2px 5px #ffffff;
+}
+
+.back-btn:active,
+.claim-btn:active,
+.save-btn:active {
+    box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
 .back-btn {
     padding: 4px 8px;
     font-size: 0.75rem;
     background: #6c757d;
     color: white;
-    border: none;
-    border-radius: 4px;
     cursor: pointer;
+}
+
+/* ★ 進捗変更アクションボタンの浮き上がり（ニューモフィズム）化 ★ */
+#quick-status-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+#quick-status-actions .btn-action {
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 6px 12px !important;
+    font-size: 0.8rem !important;
+    font-weight: bold !important;
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 3px 3px 6px rgba(166, 180, 200, 0.3),
+                -3px -3px 6px #ffffff !important;
+}
+
+#quick-status-actions .btn-action:hover {
+    transform: translateY(-2px);
+    box-shadow: 4px 4px 8px rgba(166, 180, 200, 0.4),
+                -4px -4px 8px #ffffff !important;
+}
+
+#quick-status-actions .btn-action:active {
+    transform: translateY(0);
+    box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.2),
+                inset -2px -2px 4px #ffffff !important;
 }
 
 .assign-action-box {
@@ -637,8 +743,6 @@ h1 {
     font-size: 0.78rem;
     background: #17a2b8;
     color: white;
-    border: none;
-    border-radius: 4px;
     font-weight: bold;
     cursor: pointer;
 }
@@ -647,7 +751,6 @@ h1 {
     background: #138496;
 }
 
-/* モーダル内 机椅子テーブル */
 .detail-table {
     width: 100%;
     border-collapse: collapse;
@@ -655,6 +758,9 @@ h1 {
     background: white;
     table-layout: fixed;
     margin-top: 6px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 2px 2px 6px rgba(180, 190, 210, 0.2);
 }
 
 .detail-table th,
@@ -698,14 +804,19 @@ h1 {
     word-break: break-all;
 }
 
+/* ★ 備考欄のレイアウトズレ修正 ＆ 凹みデザイン適用 ★ */
 .remarks-box {
-    background: #f8f9fa;
-    border-left: 4px solid #6c757d;
-    padding: 8px 12px;
+    padding: 10px 12px !important;
     font-size: 0.85rem;
     color: #495057;
-    border-radius: 0 6px 6px 0;
     white-space: pre-wrap;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    background: #f7f9fc !important;
+    border-radius: 12px !important;
+    border: none !important;
+    box-shadow: inset 2px 2px 5px rgba(180, 190, 210, 0.25),
+                inset -2px -2px 5px #ffffff !important;
 }
 
 .section-divider {
@@ -714,10 +825,7 @@ h1 {
     margin: 20px 0 15px 0;
 }
 
-/* サブ機能のアコーディオン */
 .sub-feature-accordion {
-    background: #f1f3f5;
-    border-radius: 8px;
     padding: 10px;
 }
 
@@ -739,9 +847,6 @@ h1 {
 }
 
 .edit-grid {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 8px;
     padding: 12px;
     margin-bottom: 12px;
 }
@@ -795,8 +900,6 @@ h1 {
     padding: 10px;
     background-color: #28a745;
     color: white;
-    border: none;
-    border-radius: 6px;
     font-weight: bold;
     font-size: 0.9rem;
     cursor: pointer;
@@ -806,7 +909,6 @@ h1 {
     background-color: #218838;
 }
 
-/* ログリスト */
 .log-list {
     list-style: none;
     padding: 0;
@@ -855,7 +957,6 @@ h1 {
     text-align: center;
 }
 
-/* ログイン画面スタイル */
 .user-info-area {
     display: flex;
     align-items: center;
@@ -952,18 +1053,19 @@ h1 {
     .modal-content {
         padding-bottom: 120px;
     }
+
     .floor-container.size-sm .card-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important; /* minmax(0, 1fr) で溢れ防止 */
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: 6px !important;
     }
 
     .floor-container.size-sm .room-card {
-        padding: 6px 4px !important; /* カード内部の余白を削って幅を確保 */
+        padding: 6px 4px !important;
         min-width: 0 !important;
     }
 
     .floor-container.size-sm .group-name {
-        max-width: 55px !important; /* 団体名の幅をiPhone mini用に調整 */
+        max-width: 55px !important;
         font-size: 0.65rem !important;
     }
 
@@ -973,19 +1075,15 @@ h1 {
     }
 
     .floor-container.size-sm .card-detail-item {
-        gap: 1px !important; /* 間隔を詰めて改行・押し出しを防止 */
+        gap: 1px !important;
     }
 
     .floor-container.size-sm .card-detail-item .label-title {
-        width: 2.2em !important; /* ラベル幅を詰める */
+        width: 2.2em !important;
     }
 
     .floor-container.size-sm .text-particle {
         margin: 0 1px !important;
-    }
-
-    .floor-container.size-sm .group-name {
-        max-width: 70px;
     }
 }
 
