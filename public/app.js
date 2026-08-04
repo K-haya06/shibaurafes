@@ -249,8 +249,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const chairDest = item['椅子移動先'] || '-';
 
                 const anteroom = (item['控え室'] || '').toString().trim();
-                const anteroomBadge = anteroom 
-                    ? `<span class="card-anteroom-text" data-room="${anteroom}"><span class="full-label">🏠 控室:${anteroom}</span><span class="short-label">🏠 ${anteroom}</span></span>` 
+                const anteroomBadge = anteroom
+                    ? `<span class="card-anteroom-text" data-room="${anteroom}"><span class="full-label">🏠 控室:${anteroom}</span><span class="short-label">🏠 ${anteroom}</span></span>`
                     : '';
 
                 let assigneeHtml = '';
@@ -328,18 +328,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
 
-                // ★ タップされた各カードごとの画面上の絶対位置を計算してモーダルに送る
-                card.addEventListener('click', (e) => {
-                    const rect = card.getBoundingClientRect();
-                    const originX = rect.left + rect.width / 2;
-                    const originY = rect.top + rect.height / 2;
-
-                    const modalContent = document.querySelector('.modal-content');
-                    if (modalContent) {
-                        modalContent.style.setProperty('--card-x', `${originX}px`);
-                        modalContent.style.setProperty('--card-y', `${originY}px`);
-                    }
-
+                // カードクリックイベント（軽量化版）
+                card.addEventListener('click', () => {
                     openModal(item);
                 });
 

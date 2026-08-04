@@ -467,7 +467,7 @@ h1 {
     display: none;
 }
 
-/* --- モーダル（ポップアップ・ニューモフィズム対応） --- */
+/* --- モーダル基本構造 --- */
 .modal {
     position: fixed;
     top: 0;
@@ -476,7 +476,6 @@ h1 {
     height: 100vh;
     display: flex;
     justify-content: center;
-    align-items: center;
     z-index: 2000;
 }
 
@@ -492,25 +491,20 @@ h1 {
     height: 100%;
     background: rgba(44, 62, 80, 0.35);
     backdrop-filter: blur(4px);
-    animation: fadeInOverlay 0.2s ease-out;
+    animation: fadeInOverlay 0.15s ease-out;
 }
 
 @keyframes fadeInOverlay {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .modal-content {
     position: relative;
     background: #ffffff;
-    width: 90%;
+    width: 100%;
     max-width: 500px;
     max-height: 85vh;
-    border-radius: 20px;
     padding: 24px 20px;
     box-sizing: border-box;
     overflow-y: auto;
@@ -518,30 +512,56 @@ h1 {
     z-index: 2001;
     border: 1px solid rgba(255, 255, 255, 0.8);
     box-shadow: 0 10px 30px rgba(166, 180, 200, 0.35);
-    
-    /* 押したカードの中心位置（--card-x, --card-y）からダイナミックに拡大 */
-    transform-origin: calc(var(--card-x, 50vw) - (100vw - 100%) / 2) calc(var(--card-y, 50vh) - (100vh - 85vh) / 2);
-    animation: zoomFromCard 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes zoomFromCard {
-    from {
-        opacity: 0;
-        transform: scale(0.15);
+/* =========================================================
+   📱 スマホ向け（600px以下）：画面下からスライドアップ
+   ========================================================= */
+@media (max-width: 600px) {
+    .modal {
+        align-items: flex-end;
     }
-    to {
-        opacity: 1;
-        transform: scale(1);
+
+    .modal-content {
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(100%);
+        }
+        to {
+            transform: translateY(0);
+        }
     }
 }
 
-@keyframes slideUp {
-    from {
-        transform: translateY(100%);
+/* =========================================================
+   💻 パソコン向け（601px以上）：中央に軽いフェードイン＆ポップ表示
+   ========================================================= */
+@media (min-width: 601px) {
+    .modal {
+        align-items: center; /* 画面中央に配置 */
     }
 
-    to {
-        transform: translateY(0);
+    .modal-content {
+        border-radius: 20px;
+        animation: popCenter 0.18s ease-out; /* 軽快な中央ポップ表示 */
+    }
+
+    @keyframes popCenter {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
     }
 }
 
