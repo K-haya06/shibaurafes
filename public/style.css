@@ -121,38 +121,66 @@ h1 {
     gap: 12px;
 }
 
-/* ★ カードサイズ：小 (size-sm) PCでは複数列、スマホでは自動2列 ★ */
+/* ★ カードサイズ：小 (size-sm) ★ */
 .floor-container.size-sm .card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
 }
 
 .floor-container.size-sm .room-card {
-    padding: 8px;
+    padding: 10px;
     min-width: 0;
 }
 
 .floor-container.size-sm .room-title {
-    font-size: 0.95rem;
+    font-size: 1rem;
 }
 
 .floor-container.size-sm .group-name {
-    font-size: 0.68rem;
-    padding: 1px 4px;
-    max-width: 70px;
+    font-size: 0.72rem;
+    padding: 2px 6px;
+    max-width: 110px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
+.floor-container.size-sm .room-title-area {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.floor-container.size-sm .assignee-sub-box {
+    margin-top: 2px;
+}
+
+.floor-container.size-sm .assignee-badge,
+.floor-container.size-sm .claim-card-btn {
+    margin-left: 0;
+    font-size: 0.68rem;
+    padding: 1px 6px;
+}
+
 .floor-container.size-sm .card-detail-rows {
-    font-size: 0.72rem;
-    padding: 4px 6px;
+    font-size: 0.75rem;
+    padding: 6px;
 }
 
 .floor-container.size-sm .status-badge {
-    font-size: 0.68rem;
-    padding: 2px 4px;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+}
+
+.floor-container.size-sm .card-anteroom-text .full-label {
+    display: none;
+}
+.floor-container.size-sm .card-anteroom-text .short-label {
+    display: inline;
+}
+
+.card-anteroom-text .short-label {
+    display: none;
 }
 
 /* --- カードサイズ：中 (size-md) デフォルト --- */
@@ -171,6 +199,10 @@ h1 {
 
 .floor-container.size-md .group-name {
     font-size: 0.8rem;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* --- カードサイズ：大 (size-lg) --- */
@@ -191,6 +223,10 @@ h1 {
 .floor-container.size-lg .group-name {
     font-size: 0.9rem;
     padding: 3px 10px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .floor-container.size-lg .card-detail-rows {
@@ -220,7 +256,14 @@ h1 {
 .card-header {
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
+}
+
+.room-title-area {
+    display: flex;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
 }
 
 .room-title {
@@ -232,9 +275,10 @@ h1 {
     background: #f1f3f5;
     border-radius: 4px;
     padding: 2px 8px;
+    white-space: nowrap;
 }
 
-/* ★ カード内詳細エリア（自然なインライン流し＆「:」揃え） ★ */
+/* ★ 完全左詰めの自然な一続き文章スタイル ★ */
 .card-detail-rows {
     margin-top: 8px;
     font-size: 0.82rem;
@@ -247,7 +291,7 @@ h1 {
 .card-detail-item {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     margin-bottom: 2px;
     white-space: nowrap;
     overflow: hidden;
@@ -258,39 +302,37 @@ h1 {
 }
 
 .card-detail-item .label-title {
-    display: inline-block;
-    width: 2.8em; /* 机α・机β・椅子 で幅を一定にしてコロン位置を揃える */
+    font-weight: normal;
+    flex-shrink: 0;
 }
 
 .card-detail-item .colon {
     font-weight: bold;
     color: #6c757d;
-    margin-right: 2px;
+    margin: 0 4px 0 2px;
+    flex-shrink: 0;
 }
 
-.card-detail-item .item-value-box {
-    display: flex;
-    align-items: center;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-}
-
-/* 移動先テキスト（あふれたら「...」） */
+/* 移動先テキスト（あふれたらその場所で「...」） */
 .dest-text {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     font-weight: bold;
     color: #1971c2;
+    min-width: 0;
 }
 
-/* 数量表示（移動先のすぐ後ろに自然に配置） */
+.text-particle {
+    margin: 0 3px;
+    font-weight: normal;
+    color: #495057;
+    flex-shrink: 0;
+}
+
 .num-move-unit {
     color: #d9480f;
     font-weight: bold;
-    margin-left: 4px;
     white-space: nowrap;
     flex-shrink: 0;
 }

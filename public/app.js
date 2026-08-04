@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const anteroom = (item['控え室'] || '').toString().trim();
                 const anteroomBadge = anteroom 
-                    ? `<span class="card-anteroom-text">🏠 控室:${anteroom}</span>` 
+                    ? `<span class="card-anteroom-text" data-room="${anteroom}"><span class="full-label">🏠 控室:${anteroom}</span><span class="short-label">🏠 ${anteroom}</span></span>` 
                     : '';
 
                 let assigneeHtml = '';
@@ -253,36 +253,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 const card = document.createElement('div');
                 card.className = 'room-card';
 
+                // ★ 完全左詰め文章表記（右寄せ固定を完全廃止）
                 card.innerHTML = `
                     <div class="card-header">
-                        <div>
+                        <div class="room-title-area">
                             <span class="room-title">${item['教室名'] || ''}</span>
-                            ${assigneeHtml}
+                            <div class="assignee-sub-box">${assigneeHtml}</div>
                         </div>
                         <span class="group-name">${item['団体名'] || '未設定'}</span>
                     </div>
 
                     <div class="card-detail-rows">
                         <div class="card-detail-item">
-                            <span>机α</span>
+                            <span class="label-title">机α</span>
                             <span class="colon">:</span>
-                            <div>
-                                <span class="dest-text">${deskADest}</span> へ <span class="num-move-unit">${deskAMove}台</span>
-                            </div>
+                            <span class="dest-text">${deskADest}</span>
+                            <span class="text-particle">へ</span>
+                            <span class="num-move-unit">${deskAMove}台</span>
                         </div>
                         <div class="card-detail-item">
-                            <span>机β</span>
+                            <span class="label-title">机β</span>
                             <span class="colon">:</span>
-                            <div>
-                                <span class="dest-text">${deskBDest}</span> へ <span class="num-move-unit">${deskBMove}台</span>
-                            </div>
+                            <span class="dest-text">${deskBDest}</span>
+                            <span class="text-particle">へ</span>
+                            <span class="num-move-unit">${deskBMove}台</span>
                         </div>
                         <div class="card-detail-item">
-                            <span>椅子</span>
+                            <span class="label-title">椅子</span>
                             <span class="colon">:</span>
-                            <div>
-                                <span class="dest-text">${chairDest}</span> へ <span class="num-move-unit">${chairMove}脚</span>
-                            </div>
+                            <span class="dest-text">${chairDest}</span>
+                            <span class="text-particle">へ</span>
+                            <span class="num-move-unit">${chairMove}脚</span>
                         </div>
                     </div>
 
@@ -399,7 +400,6 @@ document.addEventListener('DOMContentLoaded', () => {
         setSafeText('val-leader', item['責任者'] || '-');
         setSafeText('val-subleader', item['副責任者'] || '-');
 
-        // ★ 一人用机・椅子の数値判定 ＆ 表示・非表示制御
         const singleDeskVal = parseInt(item['一人用机'] || 0, 10);
         const singleChairVal = parseInt(item['一人用椅子'] || 0, 10);
 
@@ -425,7 +425,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 両方とも 0 や未入力ならセクション全体を非表示
         if (sectionSpecialEquip) {
             if (singleDeskVal > 0 || singleChairVal > 0) {
                 sectionSpecialEquip.classList.remove('hidden');
@@ -434,7 +433,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 机椅子テーブルセット
         setSafeText('td-deskA-orig', item['机α（元の数）'] || '0');
         setSafeText('td-deskA-used', item['机α（使用数）'] || '0');
         setSafeText('td-deskA-move', item['机α（移動数）'] || '0');
