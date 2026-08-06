@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentSelectedRoom = null;
     let currentUser = null;
     let currentStepIndex = 0;
+    let lastDataHash = ''; // 自動更新判定用ハッシュ
 
     const checkSteps = [
         { key: '準備_1次チェック', name: '準備 1次' },
@@ -144,6 +145,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // データの変更判定用ハッシュを作成する関数
+    function generateDataHash(data) {
+        return JSON.stringify(data.map(item => ({
+            id: item.rowIndex,
+            p1: item['準備_1次チェック'],
+            p2: item['準備_2次チェック'],
+            p3: item['準備_3次チェック'],
+            c1: item['片付け_1次チェック'],
+            c2: item['片付け_2次チェック'],
+            c3: item['片付け_3次チェック'],
+            assignee: item['担当者']
+        })));
+    }
+
     async function fetchData() {
         if (!currentUser) return;
         try {
@@ -158,11 +173,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 return newItem;
             });
 
+            lastDataHash = generateDataHash(newData);
+            const toast = document.getElementById('update-toast');
+            if (toast) toast.classList.remove('show');
+
             renderFilteredCards();
         } catch (err) {
             console.error('データ取得失敗:', err);
         }
     }
+
+    // --- 自動更新通知（トースト）処理 ---
+    function showUpdateNotification() {
+        let toast = document.getElementById('update-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'update-toast';
+            toast.className = 'update-toast';
+            toast.innerHTML = `
+                <span>✨ 他の人がデータを更新しました</span>
+                <button id="toast-refresh-btn">更新する</button>
+            `;
+            document.body.appendChild(toast);
+
+            document.getElementById('toast-refresh-btn').addEventListener('click', async () => {
+                toast.classList.remove('show');
+                await fetchData();
+            });
+        }
+
+        if (modal && modal.classList.contains('hidden')) {
+            toast.classList.add('show');
+        }
+    }
+
+    // 30秒ごとにバックグラウンドで更新チェック
+    async function checkSilentUpdate() {
+        if (!currentUser) return;
+        try {
+            const res = await fetch('/api/classrooms');
+            const newData = await res.json();
+            const newHash = generateDataHash(newData);
+
+            if (lastDataHash && lastDataHash !== newHash) {
+                showUpdateNotification();
+            }
+            lastDataHash = newHash;
+        } catch (err) {
+            console.warn('バックグラウンドチェック失敗:', err);
+        }
+    }
+
+    setInterval(checkSilentUpdate, 30000); // 30秒に設定
 
     function renderFilteredCards() {
         if (isGroupUser()) {
@@ -559,7 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ★ ステータス変更時のガードロジック（準備日と片付け日を独立して判定） ★
+    // ガード機能付きアクションボタンイベント
     if (quickStatusActions) {
         quickStatusActions.querySelectorAll('.btn-action').forEach(btn => {
             btn.addEventListener('click', async (e) => {
@@ -570,9 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const targetRoomIndex = currentSelectedRoom.rowIndex;
                 const targetRoomName = currentSelectedRoom['教室名'];
 
-                // 「完了」へ変更しようとしている場合、同グループ内（準備日内/片付け日内）の直前ステップが完了しているかガード
                 if (targetVal === '完了') {
-                    // 準備2次/準備3次、片付け2次/片付け3次 の場合（1次や、グループ切替直後の片付け1次はそのままOK）
                     if (currentStepIndex === 1 || currentStepIndex === 2 || currentStepIndex === 4 || currentStepIndex === 5) {
                         const prevStep = checkSteps[currentStepIndex - 1];
                         const prevStatus = currentSelectedRoom[prevStep.key] || '未実施';
@@ -916,11 +976,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (editItemKey) editItemKey.addEventListener('change', updateOldValueDisplay);
 
+    // --- ★ サイズ記憶・復元機能 ★ ---
+    const savedSize = localStorage.getItem('shibaurafes_card_size') || 'md';
+
+    sizeBtns.forEach(btn => {
+        if (btn.dataset.size === savedSize) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    if (cardList) {
+        cardList.className = `floor-container size-${savedSize}`;
+    }
+
     sizeBtns.forEach(btn => {
         btn.addEventListener('click', (e) => {
             sizeBtns.forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
-            if (cardList) cardList.className = `floor-container size-${e.target.dataset.size}`;
+
+            const selectedSize = e.target.dataset.size;
+            if (cardList) cardList.className = `floor-container size-${selectedSize}`;
+
+            localStorage.setItem('shibaurafes_card_size', selectedSize);
         });
     });
 

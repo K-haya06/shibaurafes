@@ -514,9 +514,7 @@ h1 {
     box-shadow: 0 10px 30px rgba(166, 180, 200, 0.35);
 }
 
-/* =========================================================
-   📱 スマホ向け（600px以下）：画面下からスライドアップ
-   ========================================================= */
+/* スマホ向け */
 @media (max-width: 600px) {
     .modal {
         align-items: flex-end;
@@ -540,17 +538,15 @@ h1 {
     }
 }
 
-/* =========================================================
-   💻 パソコン向け（601px以上）：中央に軽いフェードイン＆ポップ表示
-   ========================================================= */
+/* パソコン向け */
 @media (min-width: 601px) {
     .modal {
-        align-items: center; /* 画面中央に配置 */
+        align-items: center;
     }
 
     .modal-content {
         border-radius: 20px;
-        animation: popCenter 0.18s ease-out; /* 軽快な中央ポップ表示 */
+        animation: popCenter 0.18s ease-out;
     }
 
     @keyframes popCenter {
@@ -715,7 +711,7 @@ h1 {
     cursor: pointer;
 }
 
-/* ★ 進捗変更アクションボタンの浮き上がり（ニューモフィズム）化 ★ */
+/* アクションボタン（ニューモフィズム） */
 #quick-status-actions {
     display: flex;
     gap: 6px;
@@ -824,7 +820,6 @@ h1 {
     word-break: break-all;
 }
 
-/* ★ 備考欄のレイアウトズレ修正 ＆ 凹みデザイン適用 ★ */
 .remarks-box {
     padding: 10px 12px !important;
     font-size: 0.85rem;
@@ -1120,4 +1115,48 @@ h1 {
     padding: 2px 8px;
     border-radius: 12px;
     display: inline-block;
+}
+
+/* ★ 控えめな自動更新通知（トースト） ★ */
+.update-toast {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-100px);
+    background: #2c3e50;
+    color: #ffffff;
+    padding: 8px 16px;
+    border-radius: 30px;
+    font-size: 0.82rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    z-index: 3000;
+    opacity: 0;
+    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+}
+
+.update-toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.update-toast button {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.update-toast button:hover {
+    background: #0056b3;
 }
