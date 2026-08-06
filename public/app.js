@@ -226,6 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setInterval(checkSilentUpdate, 30000); // 30秒に設定
 
+    // ★ 検索フィルター処理（進捗ステータス対応版） ★
     function renderFilteredCards() {
         if (isGroupUser()) {
             const myRoom = currentUser.assignedRoom ? currentUser.assignedRoom.trim().toLowerCase() : '';
@@ -236,13 +237,28 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
             if (keyword) {
-                const filtered = classroomData.filter(item =>
-                    (item['教室名'] && item['教室名'].toLowerCase().includes(keyword)) ||
-                    (item['階数'] && item['階数'].toLowerCase().includes(keyword)) ||
-                    (item['団体名'] && item['団体名'].toLowerCase().includes(keyword)) ||
-                    (item['担当者'] && item['担当者'].toLowerCase().includes(keyword)) ||
-                    (item['控え室'] && String(item['控え室']).toLowerCase().includes(keyword))
-                );
+                const filtered = classroomData.filter(item => {
+                    const roomName = (item['教室名'] || '').toLowerCase();
+                    const floor = (item['階数'] || '').toLowerCase();
+                    const group = (item['団体名'] || '').toLowerCase();
+                    const assignee = (item['担当者'] || '').toLowerCase();
+                    const anteroom = String(item['控え室'] || '').toLowerCase();
+
+                    // カードに表示されている最新の進捗状態文字列を取得
+                    const stepIdx = getCardDefaultStepIndex(item);
+                    const step = checkSteps[stepIdx];
+                    const currentStatus = (item[step.key] || '未実施').toLowerCase();
+                    const fullStatusText = `${step.name}: ${currentStatus}`.toLowerCase(); // 例: "準備 1次: 依頼中"
+
+                    return roomName.includes(keyword) ||
+                        floor.includes(keyword) ||
+                        group.includes(keyword) ||
+                        assignee.includes(keyword) ||
+                        anteroom.includes(keyword) ||
+                        currentStatus.includes(keyword) ||
+                        step.name.toLowerCase().includes(keyword) ||
+                        fullStatusText.includes(keyword);
+                });
                 renderCardsByFloor(filtered);
             } else {
                 renderCardsByFloor(classroomData);
@@ -1022,46 +1038,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    if (searchToggleBtn && searchBarWrapper) {
-        searchToggleBtn.addEventListener('click', () => {
-            searchToggleBtn.classList.add('hidden');
-            searchBarWrapper.classList.remove('hidden');
-            if (searchInput) searchInput.focus();
+    // 検索入力時のクリアボタン切り替え ＆ イベント連動
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            if (searchClearBtn) {
+                if (searchInput.value.trim().length > 0) {
+                    searchClearBtn.classList.remove('hidden');
+                } else {
+                    searchClearBtn.classList.add('hidden');
+                }
+            }
+            renderFilteredCards();
         });
+    }
 
-        if (searchCloseBtn) {
-            searchCloseBtn.addEventListener('click', () => {
-                if (searchInput) searchInput.value = '';
-                if (searchClearBtn) searchClearBtn.classList.add('hidden');
-                searchBarWrapper.classList.add('hidden');
-                searchToggleBtn.classList.remove('hidden');
-                renderFilteredCards();
-            });
-        }
-
-        if (searchClearBtn) {
-            searchClearBtn.addEventListener('click', () => {
-                if (searchInput) {
-                    searchInput.value = '';
-                    searchInput.focus();
-                }
-                searchClearBtn.classList.add('hidden');
-                renderFilteredCards();
-            });
-        }
-
-        if (searchInput) {
-            searchInput.addEventListener('input', () => {
-                if (searchClearBtn) {
-                    if (searchInput.value.trim().length > 0) {
-                        searchClearBtn.classList.remove('hidden');
-                    } else {
-                        searchClearBtn.classList.add('hidden');
-                    }
-                }
-                renderFilteredCards();
-            });
-        }
+    if (searchClearBtn) {
+        searchClearBtn.addEventListener('click', () => {
+            if (searchInput) {
+                searchInput.value = '';
+                searchInput.focus();
+            }
+            searchClearBtn.classList.add('hidden');
+            renderFilteredCards();
+        });
     }
 
     if (refreshBtn) refreshBtn.addEventListener('click', fetchData);

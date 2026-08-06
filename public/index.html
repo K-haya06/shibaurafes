@@ -22,7 +22,11 @@
         <!-- 検索バー ＆ サイズ切り替えエリア -->
         <div class="controls-container">
             <div id="search-box-container" class="search-box-container">
-                <input type="text" id="search-input" placeholder="階数・教室名・団体名・担当者で検索...">
+                <div class="search-input-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="search-input" placeholder="検索 (教室名・団体名・担当者・進捗状況など)...">
+                    <button type="button" id="search-clear-btn" class="search-clear-btn hidden">&times;</button>
+                </div>
             </div>
             <div class="size-selector">
                 <button class="size-btn" data-size="sm">小</button>
