@@ -328,7 +328,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
 
-                // カードクリックイベント（軽量化版）
                 card.addEventListener('click', () => {
                     openModal(item);
                 });
@@ -560,6 +559,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ★ ステータス変更時のガードロジック（準備日と片付け日を独立して判定） ★
     if (quickStatusActions) {
         quickStatusActions.querySelectorAll('.btn-action').forEach(btn => {
             btn.addEventListener('click', async (e) => {
@@ -569,6 +569,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 const step = checkSteps[currentStepIndex];
                 const targetRoomIndex = currentSelectedRoom.rowIndex;
                 const targetRoomName = currentSelectedRoom['教室名'];
+
+                // 「完了」へ変更しようとしている場合、同グループ内（準備日内/片付け日内）の直前ステップが完了しているかガード
+                if (targetVal === '完了') {
+                    // 準備2次/準備3次、片付け2次/片付け3次 の場合（1次や、グループ切替直後の片付け1次はそのままOK）
+                    if (currentStepIndex === 1 || currentStepIndex === 2 || currentStepIndex === 4 || currentStepIndex === 5) {
+                        const prevStep = checkSteps[currentStepIndex - 1];
+                        const prevStatus = currentSelectedRoom[prevStep.key] || '未実施';
+
+                        if (prevStatus !== '完了') {
+                            alert(`前のステップ（${prevStep.name}）が完了していないため、${step.name}を完了にすることはできません。`);
+                            return;
+                        }
+                    }
+                }
 
                 currentSelectedRoom._currentStepIndex = currentStepIndex;
                 currentSelectedRoom[step.key] = targetVal;
