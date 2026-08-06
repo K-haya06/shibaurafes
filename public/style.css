@@ -1268,3 +1268,29 @@ h1 {
 .update-toast button:hover {
     background: #0056b3;
 }
+
+/* =========================================================
+   📜 モーダルのスクロールバー カスタマイズ
+   ========================================================= */
+
+/* WebKit系ブラウザ（Chrome, Safari, Edge）全体の設定 */
+.modal-content::-webkit-scrollbar {
+    width: 8px; /* スクロールバーの太さ */
+}
+
+/* スクロールバーの背景（レール部分） */
+.modal-content::-webkit-scrollbar-track {
+    background: transparent; /* 背景を透明にする */
+    margin: 12px 0; /* 上下の余白（角がはみ出さないように） */
+}
+
+/* スクロールバーのつまみ（動かす部分） */
+.modal-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1; /* マイルドなグレー色 */
+    border-radius: 4px; /* 角を丸くする */
+}
+
+/* マウスホバー時につまみの色を濃くする */
+.modal-content::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; 
+}
