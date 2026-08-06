@@ -83,13 +83,21 @@
                             <button id="step-next-btn" class="back-btn">次へ ▶</button>
                         </div>
 
-                        <!-- ワンタップステータス更新ボタン群 -->
+                        <!-- ワンタップステータス更新ボタン群（元通りに復元） -->
                         <div id="quick-status-actions" class="status-actions"
                             style="width: 100%; display: flex; gap: 6px; margin-top: 4px;">
-                            <button class="btn-action btn-none" data-val="未実施"><span class="btn-icon">⚪ </span>未実施</button>
-                            <button class="btn-action btn-request" data-val="依頼中"><span class="btn-icon">🟡 </span>依頼中</button>
-                            <button class="btn-action btn-issue" data-val="不備"><span class="btn-icon">⚠️ </span>不備</button>
-                            <button class="btn-action btn-complete" data-val="完了"><span class="btn-icon">✅ </span>完了</button>
+                            <button class="btn-action btn-none" data-val="未実施"
+                                style="flex:1; padding:6px; font-weight:bold; background:#e2e3e5; color:#383d41; border:1px solid #ced4da; border-radius:4px; cursor:pointer;">⚪
+                                未実施</button>
+                            <button class="btn-action btn-request" data-val="依頼中"
+                                style="flex:1; padding:6px; font-weight:bold; background:#ffc107; color:#333; border:none; border-radius:4px; cursor:pointer;">🟡
+                                依頼中</button>
+                            <button class="btn-action btn-issue" data-val="不備あり"
+                                style="flex:1; padding:6px; font-weight:bold; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;">⚠️
+                                不備あり</button>
+                            <button class="btn-action btn-complete" data-val="完了"
+                                style="flex:1; padding:6px; font-weight:bold; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">✅
+                                完了</button>
                         </div>
                     </div>
 
