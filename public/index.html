@@ -47,14 +47,17 @@
             <button id="modal-close-btn" class="close-btn">&times;</button>
 
             <div class="modal-header">
-                <div>
-                    <span class="floor-badge" id="modal-floor">1F</span>
-                    <h2 id="modal-room-name">101教室</h2>
-                    <span class="assignee-badge" id="modal-assignee">未割り当て</span>
-                    <!-- ★ 控え室表示エリア（JSで値がある時のみ表示） -->
-                    <span id="modal-anteroom-info" class="anteroom-badge hidden"></span>
+                <div class="modal-header-main">
+                    <div class="modal-title-row">
+                        <span class="floor-badge" id="modal-floor">1F</span>
+                        <h2 id="modal-room-name">101教室</h2>
+                        <span class="group-tag" id="modal-group-name">団体名</span>
+                        <span id="modal-anteroom-info" class="anteroom-badge hidden"></span>
+                    </div>
+                    <div class="modal-assignee-row">
+                        <span class="assignee-badge" id="modal-assignee">未割り当て</span>
+                    </div>
                 </div>
-                <span class="group-tag" id="modal-group-name">団体名</span>
             </div>
 
             <div class="modal-body">
@@ -80,26 +83,21 @@
                             <button id="step-next-btn" class="back-btn">次へ ▶</button>
                         </div>
 
-                        <!-- ★ ワンタップステータス更新ボタン群（並び順変更 ＆ 未実施追加） -->
+                        <!-- ワンタップステータス更新ボタン群 -->
                         <div id="quick-status-actions" class="status-actions"
                             style="width: 100%; display: flex; gap: 6px; margin-top: 4px;">
-                            <button class="btn-action btn-none" data-val="未実施"
-                                style="flex:1; padding:6px; font-weight:bold; background:#e2e3e5; color:#383d41; border:1px solid #ced4da; border-radius:4px; cursor:pointer;">⚪
-                                未実施</button>
-                            <button class="btn-action btn-request" data-val="依頼中"
-                                style="flex:1; padding:6px; font-weight:bold; background:#ffc107; color:#333; border:none; border-radius:4px; cursor:pointer;">🟡
-                                依頼中</button>
-                            <button class="btn-action btn-issue" data-val="不備あり"
-                                style="flex:1; padding:6px; font-weight:bold; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;">⚠️
-                                不備あり</button>
-                            <button class="btn-action btn-complete" data-val="完了"
-                                style="flex:1; padding:6px; font-weight:bold; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">✅
-                                完了</button>
+                            <button class="btn-action btn-none" data-val="未実施"><span class="btn-icon">⚪ </span>未実施</button>
+                            <button class="btn-action btn-request" data-val="依頼中"><span class="btn-icon">🟡 </span>依頼中</button>
+                            <button class="btn-action btn-issue" data-val="不備"><span class="btn-icon">⚠️ </span>不備</button>
+                            <button class="btn-action btn-complete" data-val="完了"><span class="btn-icon">✅ </span>完了</button>
                         </div>
                     </div>
 
                     <div class="assign-action-box" id="assign-action-area">
-                        <span>現在の作業担当者: <strong id="val-assigned-user">未登録</strong></span>
+                        <div class="assigned-user-wrapper">
+                            <span>担当者: </span>
+                            <strong id="val-assigned-user" class="assigned-user-text">未登録</strong>
+                        </div>
                         <div>
                             <button id="modal-claim-btn" class="claim-btn">自分が担当する</button>
                             <button id="modal-unclaim-btn" class="unclaim-btn hidden">担当を外す</button>
@@ -126,14 +124,14 @@
                                 <td id="td-deskA-orig">0</td>
                                 <td id="td-deskA-used">0</td>
                                 <td id="td-deskA-move" class="highlight-move">0</td>
-                                <td id="td-deskA-dest" class="dest-cell">-</td> <!-- ★ rowspan="2" を削除 -->
+                                <td id="td-deskA-dest" class="dest-cell">-</td>
                             </tr>
                             <tr>
                                 <th>机β</th>
                                 <td id="td-deskB-orig">0</td>
                                 <td id="td-deskB-used">0</td>
                                 <td id="td-deskB-move" class="highlight-move">0</td>
-                                <td id="td-deskB-dest" class="dest-cell">-</td> <!-- ★ 机β専用のセルを追加 -->
+                                <td id="td-deskB-dest" class="dest-cell">-</td>
                             </tr>
                             <tr>
                                 <th>椅子</th>
@@ -146,7 +144,7 @@
                     </table>
                 </section>
 
-                <!-- 4. 特殊設備（値がある時のみJSで表示） -->
+                <!-- 4. 特殊設備 -->
                 <section class="info-section" id="section-special-equip">
                     <div class="info-grid-2col">
                         <p id="box-single-desk"><strong>一人用机:</strong> <span id="val-single-desk">-</span></p>
@@ -167,7 +165,6 @@
                     <summary>⚙️ 数量の変更・編集・ログ（委員会向け）</summary>
                     <div class="accordion-content">
 
-                        <!-- 📦 1. 数量の手動変更（見出し追加） -->
                         <div class="qty-edit-box">
                             <h4 style="margin: 0 0 8px 0; color: #333;">📦 数量の手動変更（連動自動計算）</h4>
                             <div class="edit-grid">
@@ -207,7 +204,6 @@
                             </div>
                         </div>
 
-                        <!-- 📍 2. 移動先の変更・内訳追加（机α・βを分離） -->
                         <div class="qty-edit-box" style="margin-top: 16px;">
                             <h4 style="margin: 0 0 8px 0; color: #333;">📍 移動先の変更・内訳追加</h4>
                             <div class="edit-grid" style="background: #ffffff;">

@@ -57,7 +57,7 @@ h1 {
 }
 
 /* =========================================================
-   🔍 検索バー（添付画像デザイン再現） ＆ サイズ切り替えエリア
+   🔍 検索バー ＆ サイズ切り替えエリア
    ========================================================= */
 .controls-container {
     display: flex;
@@ -74,7 +74,6 @@ h1 {
     align-items: center;
 }
 
-/* 丸みのある大きなカプセル型の白枠 */
 .search-input-wrapper {
     position: relative;
     display: flex;
@@ -115,7 +114,6 @@ h1 {
     font-size: 0.85rem;
 }
 
-/* 右側のクリア（×）ボタン */
 .search-clear-btn {
     background: #ced4da;
     color: #ffffff;
@@ -201,32 +199,6 @@ h1 {
     font-size: 1rem;
 }
 
-.floor-container.size-sm .group-name {
-    font-size: 0.72rem;
-    padding: 2px 6px;
-    max-width: 110px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.floor-container.size-sm .room-title-area {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
-.floor-container.size-sm .assignee-sub-box {
-    margin-top: 2px;
-}
-
-.floor-container.size-sm .assignee-badge,
-.floor-container.size-sm .claim-card-btn {
-    margin-left: 0;
-    font-size: 0.68rem;
-    padding: 1px 6px;
-}
-
 .floor-container.size-sm .card-detail-rows {
     font-size: 0.75rem;
     padding: 6px;
@@ -262,14 +234,6 @@ h1 {
     font-size: 1.15rem;
 }
 
-.floor-container.size-md .group-name {
-    font-size: 0.8rem;
-    max-width: 150px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 /* --- カードサイズ：大 (size-lg) --- */
 .floor-container.size-lg .card-grid {
     grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
@@ -284,15 +248,6 @@ h1 {
     font-size: 1.3rem;
 }
 
-.floor-container.size-lg .group-name {
-    font-size: 0.9rem;
-    padding: 3px 10px;
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 .floor-container.size-lg .card-detail-rows {
     font-size: 0.9rem;
     padding: 8px 10px;
@@ -303,7 +258,7 @@ h1 {
     padding: 6px 14px;
 }
 
-/* ★ スッキリ見やすいマイルド・ニューモフィズムカード ★ */
+/* ★ カード本体 ★ */
 .room-card {
     background: #ffffff;
     border-radius: 14px;
@@ -326,21 +281,22 @@ h1 {
                 -2px -2px 6px rgba(255, 255, 255, 0.7);
 }
 
-.card-header {
+/* 1行目：部屋番号 ＋ 団体名 */
+.card-header-top {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-}
-
-.room-title-area {
-    display: flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 4px;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
 }
 
 .room-title {
     font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
 }
 
 .group-name {
@@ -348,10 +304,81 @@ h1 {
     background: #f1f3f5;
     border-radius: 4px;
     padding: 2px 8px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%;
+    flex-shrink: 1;
+}
+
+/* 2行目：担当者行 */
+.card-assignee-row {
+    margin-top: 4px;
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+
+.assignee-badge {
+    font-size: 0.72rem;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 12px;
+    background-color: #e7f5ff;
+    color: #1971c2;
+    border: 1px solid #a5d8ff;
+    display: inline-block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+}
+
+.assignee-badge.unassigned {
+    background-color: #f1f3f5;
+    color: #868e96;
+    border-color: #ced4da;
+}
+
+.claim-card-btn {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    background-color: #e7f5ff;
+    color: #1971c2;
+    border: 1px solid #a5d8ff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
     white-space: nowrap;
 }
 
-/* ★ 明るい背景 ＆ 内側のへこみデザイン詳細枠 ★ */
+.claim-card-btn:hover {
+    background-color: #d0ebff;
+}
+
+.unclaim-btn {
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-left: 4px;
+}
+
+.unclaim-btn:hover {
+    background: #bd2130;
+}
+
+.unclaim-btn.hidden {
+    display: none;
+}
+
 .card-detail-rows {
     margin-top: 8px;
     font-size: 0.82rem;
@@ -450,8 +477,10 @@ h1 {
 }
 
 .status-badge[data-status="不備あり"],
+.status-badge[data-status="不備"],
 .status-badge[data-status="再度"],
 .status-pill[data-status="不備あり"],
+.status-pill[data-status="不備"],
 .status-pill[data-status="再度"] {
     background-color: #f8d7da;
     color: #721c24;
@@ -470,63 +499,7 @@ h1 {
     color: #155724;
 }
 
-/* 担当者バッジ */
-.assignee-badge {
-    font-size: 0.72rem;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 12px;
-    background-color: #e7f5ff;
-    color: #1971c2;
-    border: 1px solid #a5d8ff;
-    margin-left: 4px;
-    display: inline-flex;
-    align-items: center;
-}
-
-.assignee-badge.unassigned {
-    background-color: #f1f3f5;
-    color: #868e96;
-    border-color: #ced4da;
-}
-
-.claim-card-btn {
-    font-size: 0.7rem;
-    padding: 2px 6px;
-    background-color: #e7f5ff;
-    color: #1971c2;
-    border: 1px solid #a5d8ff;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    margin-left: 4px;
-}
-
-.claim-card-btn:hover {
-    background-color: #d0ebff;
-}
-
-.unclaim-btn {
-    padding: 4px 10px;
-    font-size: 0.78rem;
-    background: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-weight: bold;
-    cursor: pointer;
-    margin-left: 4px;
-}
-
-.unclaim-btn:hover {
-    background: #bd2130;
-}
-
-.unclaim-btn.hidden {
-    display: none;
-}
-
-/* --- モーダル基本構造 --- */
+/* モーダル構造 */
 .modal {
     position: fixed;
     top: 0;
@@ -573,7 +546,6 @@ h1 {
     box-shadow: 0 10px 30px rgba(166, 180, 200, 0.35);
 }
 
-/* スマホ向け */
 @media (max-width: 600px) {
     .modal {
         align-items: flex-end;
@@ -587,6 +559,16 @@ h1 {
         animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    /* スマホ時：進捗ボタンの記号アイコンを非表示 */
+    #quick-status-actions .btn-action .btn-icon {
+        display: none !important;
+    }
+
+    #quick-status-actions .btn-action {
+        padding: 6px 4px !important;
+        font-size: 0.75rem !important;
+    }
+
     @keyframes slideUp {
         from {
             transform: translateY(100%);
@@ -597,7 +579,6 @@ h1 {
     }
 }
 
-/* パソコン向け */
 @media (min-width: 601px) {
     .modal {
         align-items: center;
@@ -645,30 +626,59 @@ h1 {
                 inset -2px -2px 4px #ffffff;
 }
 
+/* ★ モーダルヘッダー調整 ★ */
 .modal-header {
     margin-bottom: 18px;
     border-bottom: 1px dashed #ced4da;
     padding-bottom: 12px;
     padding-right: 40px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.modal-header > div {
+.modal-header-main {
     display: flex;
-    align-items: center;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: 6px;
+    width: 100%;
 }
 
-.modal-header h2 {
+/* モーダル1行目：階数・部屋番号・団体名（横並び） */
+.modal-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.modal-title-row h2 {
     margin: 0;
     font-size: 1.3rem;
     line-height: 1;
-    display: inline-block;
+}
+
+/* 団体名を右寄せにするスタイル */
+#modal-group-name {
+    margin-left: auto; /* 自動余白を入れて右端に移動 */
+    max-width: 50%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* モーダル2行目：担当者（1行固定で長ければ ... に省略） */
+.modal-assignee-row {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+
+.modal-assignee-row .assignee-badge {
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .floor-badge {
@@ -770,24 +780,24 @@ h1 {
     cursor: pointer;
 }
 
-/* アクションボタン（ニューモフィズム） */
 #quick-status-actions {
     display: flex;
     gap: 6px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     margin-top: 8px;
 }
 
 #quick-status-actions .btn-action {
     border: none !important;
     border-radius: 8px !important;
-    padding: 6px 12px !important;
+    padding: 6px 12px;
     font-size: 0.8rem !important;
     font-weight: bold !important;
     cursor: pointer;
     transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 3px 3px 6px rgba(166, 180, 200, 0.3),
                 -3px -3px 6px #ffffff !important;
+    white-space: nowrap;
 }
 
 #quick-status-actions .btn-action:hover {
@@ -802,15 +812,37 @@ h1 {
                 inset -2px -2px 4px #ffffff !important;
 }
 
+/* モーダル「担当者」領域：長い名前も1行で ... に省略 */
 .assign-action-box {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
     margin-top: 8px;
     padding: 6px 10px;
     background: #f8f9fa;
     border-radius: 6px;
     font-size: 0.8rem;
+}
+
+.assigned-user-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+}
+
+.assigned-user-wrapper span {
+    flex-shrink: 0;
+}
+
+.assigned-user-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
 }
 
 .claim-btn {
@@ -820,6 +852,8 @@ h1 {
     color: white;
     font-weight: bold;
     cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .claim-btn:hover {
@@ -1106,7 +1140,6 @@ h1 {
     border: 1px solid #ffd8a8;
     padding: 2px 8px;
     border-radius: 4px;
-    margin-left: 6px;
     display: inline-flex;
     align-items: center;
 }
@@ -1136,11 +1169,6 @@ h1 {
     .floor-container.size-sm .room-card {
         padding: 6px 4px !important;
         min-width: 0 !important;
-    }
-
-    .floor-container.size-sm .group-name {
-        max-width: 55px !important;
-        font-size: 0.65rem !important;
     }
 
     .floor-container.size-sm .card-detail-rows {
@@ -1176,7 +1204,7 @@ h1 {
     display: inline-block;
 }
 
-/* ★ 控えめな自動更新通知（トースト） ★ */
+/* トースト通知 */
 .update-toast {
     position: fixed;
     top: 16px;

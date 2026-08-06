@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 30秒ごとにバックグラウンドで更新チェック
+    // モーダル維持対応版：30秒ごとのサイレント更新チェック
     async function checkSilentUpdate() {
         if (!currentUser) return;
         try {
@@ -216,17 +216,55 @@ document.addEventListener('DOMContentLoaded', () => {
             const newHash = generateDataHash(newData);
 
             if (lastDataHash && lastDataHash !== newHash) {
-                showUpdateNotification();
+                if (modal && !modal.classList.contains('hidden') && currentSelectedRoom) {
+                    const activeEl = document.activeElement;
+                    const isEditing = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
+
+                    if (!isEditing) {
+                        classroomData = newData.map(newItem => {
+                            const oldItem = classroomData.find(old => old.rowIndex === newItem.rowIndex);
+                            if (oldItem && oldItem._currentStepIndex !== undefined) {
+                                newItem._currentStepIndex = oldItem._currentStepIndex;
+                            }
+                            return newItem;
+                        });
+
+                        const updatedRoom = classroomData.find(r => r.rowIndex === currentSelectedRoom.rowIndex);
+                        if (updatedRoom) {
+                            currentSelectedRoom = updatedRoom;
+                            
+                            updateModalCheckArea();
+                            updateAssigneeUI(updatedRoom['担当者']);
+                            
+                            setSafeText('td-deskA-orig', updatedRoom['机α（元の数）'] || '0');
+                            setSafeText('td-deskA-used', updatedRoom['机α（使用数）'] || '0');
+                            setSafeText('td-deskA-move', updatedRoom['机α（移動数）'] || '0');
+                            setSafeText('td-deskB-orig', updatedRoom['机β（元の数）'] || '0');
+                            setSafeText('td-deskB-used', updatedRoom['机β（使用数）'] || '0');
+                            setSafeText('td-deskB-move', updatedRoom['机β（移動数）'] || '0');
+                            setSafeText('td-chair-orig', updatedRoom['椅子（元の数）'] || '0');
+                            setSafeText('td-chair-used', updatedRoom['椅子（使用数）'] || '0');
+                            setSafeText('td-chair-move', updatedRoom['椅子（移動数）'] || '0');
+                        }
+
+                        renderFilteredCards();
+                        lastDataHash = newHash;
+                    }
+                } else {
+                    showUpdateNotification();
+                    lastDataHash = newHash;
+                }
+            } else {
+                lastDataHash = newHash;
             }
-            lastDataHash = newHash;
         } catch (err) {
             console.warn('バックグラウンドチェック失敗:', err);
         }
     }
 
-    setInterval(checkSilentUpdate, 30000); // 30秒に設定
+    setInterval(checkSilentUpdate, 30000);
 
-    // ★ 検索フィルター処理（進捗ステータス対応版） ★
+    // 検索フィルター処理
     function renderFilteredCards() {
         if (isGroupUser()) {
             const myRoom = currentUser.assignedRoom ? currentUser.assignedRoom.trim().toLowerCase() : '';
@@ -244,11 +282,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     const assignee = (item['担当者'] || '').toLowerCase();
                     const anteroom = String(item['控え室'] || '').toLowerCase();
 
-                    // カードに表示されている最新の進捗状態文字列を取得
                     const stepIdx = getCardDefaultStepIndex(item);
                     const step = checkSteps[stepIdx];
                     const currentStatus = (item[step.key] || '未実施').toLowerCase();
-                    const fullStatusText = `${step.name}: ${currentStatus}`.toLowerCase(); // 例: "準備 1次: 依頼中"
+                    const fullStatusText = `${step.name}: ${currentStatus}`.toLowerCase();
 
                     return roomName.includes(keyword) ||
                         floor.includes(keyword) ||
@@ -342,12 +379,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 card.className = 'room-card';
 
                 card.innerHTML = `
-                    <div class="card-header">
-                        <div class="room-title-area">
-                            <span class="room-title">${item['教室名'] || ''}</span>
-                            <div class="assignee-sub-box">${assigneeHtml}</div>
-                        </div>
+                    <div class="card-header-top">
+                        <span class="room-title">${item['教室名'] || ''}</span>
                         <span class="group-name">${item['団体名'] || '未設定'}</span>
+                    </div>
+
+                    <div class="card-assignee-row">
+                        ${assigneeHtml}
                     </div>
 
                     <div class="card-detail-rows">
@@ -637,7 +675,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ガード機能付きアクションボタンイベント
     if (quickStatusActions) {
         quickStatusActions.querySelectorAll('.btn-action').forEach(btn => {
             btn.addEventListener('click', async (e) => {
@@ -992,7 +1029,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (editItemKey) editItemKey.addEventListener('change', updateOldValueDisplay);
 
-    // --- ★ サイズ記憶・復元機能 ★ ---
+    // サイズ記憶・復元機能
     const savedSize = localStorage.getItem('shibaurafes_card_size') || 'md';
 
     sizeBtns.forEach(btn => {
@@ -1038,7 +1075,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 検索入力時のクリアボタン切り替え ＆ イベント連動
     if (searchInput) {
         searchInput.addEventListener('input', () => {
             if (searchClearBtn) {
