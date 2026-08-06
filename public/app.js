@@ -515,7 +515,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const modalAnteroomEl = document.getElementById('modal-anteroom-info');
         if (modalAnteroomEl) {
             if (anteroom) {
-                modalAnteroomEl.textContent = `🏠 控え室: ${anteroom}`;
+                // スマホ表示時は「控え室：」を省いて「🏠 教室名」にする
+                const isMobile = window.innerWidth <= 600;
+                modalAnteroomEl.textContent = isMobile ? `🏠 ${anteroom}` : `🏠 控え室: ${anteroom}`;
                 modalAnteroomEl.classList.remove('hidden');
             } else {
                 modalAnteroomEl.classList.add('hidden');

@@ -56,9 +56,7 @@ h1 {
     font-weight: bold;
 }
 
-/* =========================================================
-   🔍 検索バー ＆ サイズ切り替えエリア
-   ========================================================= */
+/* --- 検索とサイズ切り替えエリア --- */
 .controls-container {
     display: flex;
     gap: 8px;
@@ -74,70 +72,15 @@ h1 {
     align-items: center;
 }
 
-.search-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-    width: 100%;
-    background: #ffffff;
-    border-radius: 24px;
-    padding: 4px 12px;
-    box-sizing: border-box;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    transition: all 0.2s ease;
-}
-
-.search-input-wrapper:focus-within {
-    box-shadow: 0 4px 16px rgba(0, 123, 255, 0.2);
-}
-
-.search-icon {
-    font-size: 0.9rem;
-    color: #6c757d;
-    margin-right: 8px;
-    user-select: none;
-}
-
 #search-input {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    padding: 8px 0;
-    font-size: 0.95rem;
-    color: #2c3e50;
     width: 100%;
-}
-
-#search-input::placeholder {
-    color: #adb5bd;
-    font-size: 0.85rem;
-}
-
-.search-clear-btn {
-    background: #ced4da;
-    color: #ffffff;
-    border: none;
-    border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    font-size: 0.85rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    margin-left: 6px;
-    padding: 0;
-    line-height: 1;
-    transition: background 0.15s ease;
-}
-
-.search-clear-btn:hover {
-    background: #adb5bd;
-}
-
-.search-clear-btn.hidden {
-    display: none !important;
+    padding: 10px 14px;
+    font-size: 16px;
+    box-sizing: border-box;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: inset 2px 2px 4px rgba(180, 190, 210, 0.2);
 }
 
 .size-selector {
@@ -199,6 +142,32 @@ h1 {
     font-size: 1rem;
 }
 
+.floor-container.size-sm .group-name {
+    font-size: 0.72rem;
+    padding: 2px 6px;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.floor-container.size-sm .room-title-area {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.floor-container.size-sm .assignee-sub-box {
+    margin-top: 2px;
+}
+
+.floor-container.size-sm .assignee-badge,
+.floor-container.size-sm .claim-card-btn {
+    margin-left: 0;
+    font-size: 0.68rem;
+    padding: 1px 6px;
+}
+
 .floor-container.size-sm .card-detail-rows {
     font-size: 0.75rem;
     padding: 6px;
@@ -234,6 +203,14 @@ h1 {
     font-size: 1.15rem;
 }
 
+.floor-container.size-md .group-name {
+    font-size: 0.8rem;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* --- カードサイズ：大 (size-lg) --- */
 .floor-container.size-lg .card-grid {
     grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
@@ -248,6 +225,15 @@ h1 {
     font-size: 1.3rem;
 }
 
+.floor-container.size-lg .group-name {
+    font-size: 0.9rem;
+    padding: 3px 10px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .floor-container.size-lg .card-detail-rows {
     font-size: 0.9rem;
     padding: 8px 10px;
@@ -258,7 +244,7 @@ h1 {
     padding: 6px 14px;
 }
 
-/* ★ カード本体 ★ */
+/* ★ スッキリ見やすいマイルド・ニューモフィズムカード ★ */
 .room-card {
     background: #ffffff;
     border-radius: 14px;
@@ -281,22 +267,21 @@ h1 {
                 -2px -2px 6px rgba(255, 255, 255, 0.7);
 }
 
-/* 1行目：部屋番号 ＋ 団体名 */
-.card-header-top {
+.card-header {
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
+}
+
+.room-title-area {
+    display: flex;
     align-items: center;
-    gap: 8px;
-    width: 100%;
-    min-width: 0;
+    flex-wrap: wrap;
+    gap: 4px;
 }
 
 .room-title {
     font-weight: bold;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex-shrink: 0;
 }
 
 .group-name {
@@ -304,81 +289,10 @@ h1 {
     background: #f1f3f5;
     border-radius: 4px;
     padding: 2px 8px;
-    font-size: 0.75rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 60%;
-    flex-shrink: 1;
-}
-
-/* 2行目：担当者行 */
-.card-assignee-row {
-    margin-top: 4px;
-    width: 100%;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-}
-
-.assignee-badge {
-    font-size: 0.72rem;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 12px;
-    background-color: #e7f5ff;
-    color: #1971c2;
-    border: 1px solid #a5d8ff;
-    display: inline-block;
-    max-width: 100%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    box-sizing: border-box;
-}
-
-.assignee-badge.unassigned {
-    background-color: #f1f3f5;
-    color: #868e96;
-    border-color: #ced4da;
-}
-
-.claim-card-btn {
-    font-size: 0.7rem;
-    padding: 2px 6px;
-    background-color: #e7f5ff;
-    color: #1971c2;
-    border: 1px solid #a5d8ff;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
     white-space: nowrap;
 }
 
-.claim-card-btn:hover {
-    background-color: #d0ebff;
-}
-
-.unclaim-btn {
-    padding: 4px 10px;
-    font-size: 0.78rem;
-    background: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-weight: bold;
-    cursor: pointer;
-    margin-left: 4px;
-}
-
-.unclaim-btn:hover {
-    background: #bd2130;
-}
-
-.unclaim-btn.hidden {
-    display: none;
-}
-
+/* ★ 明るい背景 ＆ 内側のへこみデザイン詳細枠 ★ */
 .card-detail-rows {
     margin-top: 8px;
     font-size: 0.82rem;
@@ -477,10 +391,8 @@ h1 {
 }
 
 .status-badge[data-status="不備あり"],
-.status-badge[data-status="不備"],
 .status-badge[data-status="再度"],
 .status-pill[data-status="不備あり"],
-.status-pill[data-status="不備"],
 .status-pill[data-status="再度"] {
     background-color: #f8d7da;
     color: #721c24;
@@ -499,7 +411,63 @@ h1 {
     color: #155724;
 }
 
-/* モーダル構造 */
+/* 担当者バッジ */
+.assignee-badge {
+    font-size: 0.72rem;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 12px;
+    background-color: #e7f5ff;
+    color: #1971c2;
+    border: 1px solid #a5d8ff;
+    margin-left: 4px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.assignee-badge.unassigned {
+    background-color: #f1f3f5;
+    color: #868e96;
+    border-color: #ced4da;
+}
+
+.claim-card-btn {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    background-color: #e7f5ff;
+    color: #1971c2;
+    border: 1px solid #a5d8ff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 4px;
+}
+
+.claim-card-btn:hover {
+    background-color: #d0ebff;
+}
+
+.unclaim-btn {
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-left: 4px;
+}
+
+.unclaim-btn:hover {
+    background: #bd2130;
+}
+
+.unclaim-btn.hidden {
+    display: none;
+}
+
+/* --- モーダル基本構造 --- */
 .modal {
     position: fixed;
     top: 0;
@@ -546,6 +514,9 @@ h1 {
     box-shadow: 0 10px 30px rgba(166, 180, 200, 0.35);
 }
 
+/* =========================================================
+   📱 スマホ向け（600px以下）
+   ========================================================= */
 @media (max-width: 600px) {
     .modal {
         align-items: flex-end;
@@ -557,17 +528,15 @@ h1 {
         border-bottom-left-radius: 0;
         border-bottom-right-radius: 0;
         animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        padding-right: 50px; /* ★ スマホで×ボタンと文字が被らないように右側の余白を確保 */
+        padding-bottom: 12px;
     }
 
-    /* スマホ時：進捗ボタンの記号アイコンを非表示 */
-    #quick-status-actions .btn-action .btn-icon {
-        display: none !important;
+    /* スマホ時は控え室の文字を省略して「🏠 教室名」にする */
+    .anteroom-badge {
+        font-size: 0.75rem;
     }
-
-    #quick-status-actions .btn-action {
-        padding: 6px 4px !important;
-        font-size: 0.75rem !important;
+    .anteroom-badge::before {
+        content: "🏠 ";
     }
 
     @keyframes slideUp {
@@ -580,6 +549,9 @@ h1 {
     }
 }
 
+/* =========================================================
+   💻 パソコン向け（601px以上）
+   ========================================================= */
 @media (min-width: 601px) {
     .modal {
         align-items: center;
@@ -602,24 +574,25 @@ h1 {
     }
 }
 
+/* ★ ×ボタン：スクロールバーや文字とかぶらない最適な位置に固定 ★ */
 .close-btn {
     position: absolute;
     top: 14px;
-    right: 18px;
+    right: 14px;
     background: #f7f9fc;
     border: none;
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     color: #888;
     cursor: pointer;
-    z-index: 10;
-    width: 36px;
-    height: 36px;
+    z-index: 50;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 3px 3px 6px rgba(180, 190, 210, 0.3),
-                -3px -3px 6px #ffffff;
+    box-shadow: 2px 2px 5px rgba(180, 190, 210, 0.3),
+                -2px -2px 5px #ffffff;
 }
 
 .close-btn:active {
@@ -627,68 +600,31 @@ h1 {
                 inset -2px -2px 4px #ffffff;
 }
 
-/* モーダルヘッダー調整 */
 .modal-header {
     margin-bottom: 18px;
     border-bottom: 1px dashed #ced4da;
     padding-bottom: 12px;
-    padding-right: 45px; /* ×ボタン用の右側パディング */
-    width: 100%;
-    box-sizing: border-box;
-}
-
-.modal-header-main {
+    padding-right: 35px; /* ×ボタンと文字が被らないよう右側に余裕を持たせる */
     display: flex;
-    flex-direction: column;
-    gap: 6px;
-    width: 100%;
-    min-width: 0;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    position: relative;
 }
 
-/* モーダル1行目：階数・部屋番号・団体名（横並び） */
-.modal-title-row {
+.modal-header > div {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 6px;
-    width: 100%;
-    min-width: 0;
 }
 
-.modal-title-row h2 {
+.modal-header h2 {
     margin: 0;
     font-size: 1.3rem;
     line-height: 1;
-    flex-shrink: 0;
-}
-
-/* 団体名：左側の空きスペースを最大限活用して表示する設定 */
-#modal-group-name {
-    margin-left: auto;
-    max-width: calc(100% - 130px); /* ★ 階数と教室名の幅を除いた残りのスペースをフル活用 */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: 0.8rem;
-    color: #6c757d;
-    background: #f1f3f5;
-    padding: 4px 8px;
-    border-radius: 4px;
-    flex-shrink: 1;
-}
-
-/* モーダル2行目：担当者（1行固定で長ければ ... に省略） */
-.modal-assignee-row {
-    width: 100%;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-}
-
-.modal-assignee-row .assignee-badge {
-    max-width: 100%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    display: inline-block;
 }
 
 .floor-badge {
@@ -702,7 +638,17 @@ h1 {
     line-height: 1;
     display: inline-flex;
     align-items: center;
-    flex-shrink: 0;
+}
+
+.group-tag {
+    font-size: 0.8rem;
+    color: #6c757d;
+    background: #f1f3f5;
+    padding: 4px 8px;
+    border-radius: 4px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
 }
 
 .info-section {
@@ -780,24 +726,24 @@ h1 {
     cursor: pointer;
 }
 
+/* ★ 進捗変更アクションボタンの浮き上がり（ニューモフィズム）化 ★ */
 #quick-status-actions {
     display: flex;
     gap: 6px;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     margin-top: 8px;
 }
 
 #quick-status-actions .btn-action {
     border: none !important;
     border-radius: 8px !important;
-    padding: 6px 12px;
+    padding: 6px 12px !important;
     font-size: 0.8rem !important;
     font-weight: bold !important;
     cursor: pointer;
     transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 3px 3px 6px rgba(166, 180, 200, 0.3),
                 -3px -3px 6px #ffffff !important;
-    white-space: nowrap;
 }
 
 #quick-status-actions .btn-action:hover {
@@ -812,37 +758,15 @@ h1 {
                 inset -2px -2px 4px #ffffff !important;
 }
 
-/* モーダル「担当者」領域 */
 .assign-action-box {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
     margin-top: 8px;
     padding: 6px 10px;
     background: #f8f9fa;
     border-radius: 6px;
     font-size: 0.8rem;
-}
-
-.assigned-user-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    min-width: 0;
-    flex: 1;
-}
-
-.assigned-user-wrapper span {
-    flex-shrink: 0;
-}
-
-.assigned-user-text {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-    flex: 1;
 }
 
 .claim-btn {
@@ -852,76 +776,53 @@ h1 {
     color: white;
     font-weight: bold;
     cursor: pointer;
-    white-space: nowrap;
-    flex-shrink: 0;
 }
 
 .claim-btn:hover {
     background: #138496;
 }
 
-/* ★ 机椅子一覧テーブル：項目の列を小さくし、移動先の列を広くする調整 ★ */
 .detail-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.95rem;
     background: white;
-    table-layout: fixed; /* 列幅の比率を固定 */
+    table-layout: fixed;
     margin-top: 6px;
     border-radius: 10px;
     overflow: hidden;
     box-shadow: 2px 2px 6px rgba(180, 190, 210, 0.2);
 }
 
-/* 列幅の比率設定（項目を小さくし、移動先を広く確保） */
-.detail-table th:nth-child(1),
-.detail-table td:nth-child(1) {
-    width: 16%; /* 項目（2文字の部分）をコンパクトに */
-}
-
-.detail-table th:nth-child(2),
-.detail-table td:nth-child(2),
-.detail-table th:nth-child(3),
-.detail-table td:nth-child(3),
-.detail-table th:nth-child(4),
-.detail-table td:nth-child(4) {
-    width: 16%; /* 元の数・使用数・移動数 */
-}
-
-.detail-table th:nth-child(5),
-.detail-table td:nth-child(5) {
-    width: 36%; /* 移動先を大きく広く確保 */
-}
-
 .detail-table th,
 .detail-table td {
     border: 1px solid #ced4da;
-    padding: 8px 4px;
+    padding: 8px 6px;
     text-align: center;
     line-height: 1.4;
 }
 
 .detail-table thead th {
     background-color: #e9ecef;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     color: #495057;
 }
 
 .detail-table tbody th {
     background-color: #f8f9fa;
     font-weight: bold;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
 }
 
 .detail-table td {
-    font-size: 0.95rem;
+    font-size: 1rem;
     font-weight: 500;
 }
 
 .highlight-move {
     color: #d9480f;
     font-weight: bold;
-    font-size: 1.05rem;
+    font-size: 1.1rem;
     background-color: #fff4e6;
 }
 
@@ -930,10 +831,11 @@ h1 {
     color: #1971c2;
     background-color: #f8f9fa;
     vertical-align: middle;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     word-break: break-all;
 }
 
+/* ★ 備考欄のレイアウトズレ修正 ＆ 凹みデザイン適用 ★ */
 .remarks-box {
     padding: 10px 12px !important;
     font-size: 0.85rem;
@@ -1161,8 +1063,28 @@ h1 {
     border: 1px solid #ffd8a8;
     padding: 2px 8px;
     border-radius: 4px;
+    margin-left: 6px;
     display: inline-flex;
     align-items: center;
+}
+
+/* スクロールバーのデザインカスタマイズ */
+.modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 12px 0;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 /* レスポンシブ微調整 */
@@ -1190,6 +1112,11 @@ h1 {
     .floor-container.size-sm .room-card {
         padding: 6px 4px !important;
         min-width: 0 !important;
+    }
+
+    .floor-container.size-sm .group-name {
+        max-width: 55px !important;
+        font-size: 0.65rem !important;
     }
 
     .floor-container.size-sm .card-detail-rows {
@@ -1223,74 +1150,4 @@ h1 {
     padding: 2px 8px;
     border-radius: 12px;
     display: inline-block;
-}
-
-/* トースト通知 */
-.update-toast {
-    position: fixed;
-    top: 16px;
-    left: 50%;
-    transform: translateX(-50%) translateY(-100px);
-    background: #2c3e50;
-    color: #ffffff;
-    padding: 8px 16px;
-    border-radius: 30px;
-    font-size: 0.82rem;
-    font-weight: bold;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-    z-index: 3000;
-    opacity: 0;
-    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    pointer-events: none;
-}
-
-.update-toast.show {
-    transform: translateX(-50%) translateY(0);
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.update-toast button {
-    background: #007bff;
-    color: white;
-    border: none;
-    padding: 4px 10px;
-    border-radius: 14px;
-    font-size: 0.75rem;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background 0.2s ease;
-}
-
-.update-toast button:hover {
-    background: #0056b3;
-}
-
-/* =========================================================
-   📜 モーダルのスクロールバー カスタマイズ
-   ========================================================= */
-
-/* WebKit系ブラウザ（Chrome, Safari, Edge）全体の設定 */
-.modal-content::-webkit-scrollbar {
-    width: 8px; /* スクロールバーの太さ */
-}
-
-/* スクロールバーの背景（レール部分） */
-.modal-content::-webkit-scrollbar-track {
-    background: transparent; /* 背景を透明にする */
-    margin: 12px 0; /* 上下の余白（角がはみ出さないように） */
-}
-
-/* スクロールバーのつまみ（動かす部分） */
-.modal-content::-webkit-scrollbar-thumb {
-    background: #cbd5e1; /* マイルドなグレー色 */
-    border-radius: 4px; /* 角を丸くする */
-}
-
-/* マウスホバー時につまみの色を濃くする */
-.modal-content::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8; 
 }
