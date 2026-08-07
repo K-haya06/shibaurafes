@@ -4,11 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sizeBtns = document.querySelectorAll('.size-btn');
     const searchBoxContainer = document.getElementById('search-box-container');
     const searchInput = document.getElementById('search-input');
-
-    const searchToggleBtn = document.getElementById('search-toggle-btn');
-    const searchBarWrapper = document.getElementById('search-bar-wrapper');
     const searchClearBtn = document.getElementById('search-clear-btn');
-    const searchCloseBtn = document.getElementById('search-close-btn');
 
     // ログイン関連要素
     const loginModal = document.getElementById('login-modal');
@@ -24,11 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('detail-modal');
     const modalOverlay = document.getElementById('modal-overlay');
     const modalCloseBtn = document.getElementById('modal-close-btn');
-    const modalTitle = document.getElementById('modal-title');
     const modalRoomName = document.getElementById('modal-room-name');
-    const modalGroup = document.getElementById('modal-group');
     const modalGroupName = document.getElementById('modal-group-name');
-    const modalAssigneeBadge = document.getElementById('modal-assignee-badge') || document.getElementById('modal-assignee');
     const modalClaimBtn = document.getElementById('modal-claim-btn');
     const modalUnclaimBtn = document.getElementById('modal-unclaim-btn');
 
@@ -55,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentSelectedRoom = null;
     let currentUser = null;
     let currentStepIndex = 0;
-    let lastDataHash = ''; // 自動更新判定用ハッシュ
+    let lastDataHash = '';
 
     const checkSteps = [
         { key: '準備_1次チェック', name: '準備 1次' },
@@ -145,7 +138,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // データの変更判定用ハッシュを作成する関数
     function generateDataHash(data) {
         return JSON.stringify(data.map(item => ({
             id: item.rowIndex,
@@ -183,7 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- 自動更新通知（トースト）処理 ---
     function showUpdateNotification() {
         let toast = document.getElementById('update-toast');
         if (!toast) {
@@ -207,7 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // モーダル維持対応版：30秒ごとのサイレント更新チェック
     async function checkSilentUpdate() {
         if (!currentUser) return;
         try {
@@ -264,7 +254,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     setInterval(checkSilentUpdate, 30000);
 
-    // 検索フィルター処理
     function renderFilteredCards() {
         if (isGroupUser()) {
             const myRoom = currentUser.assignedRoom ? currentUser.assignedRoom.trim().toLowerCase() : '';
@@ -503,21 +492,21 @@ document.addEventListener('DOMContentLoaded', () => {
         resetModalForms();
 
         const roomNameText = item['教室名'] || '';
-        if (modalTitle) modalTitle.textContent = roomNameText;
         if (modalRoomName) modalRoomName.textContent = roomNameText;
 
         setSafeText('modal-floor', item['階数'] || '階未指定');
         const groupNameText = item['団体名'] || '団体名未設定';
-        if (modalGroup) modalGroup.textContent = groupNameText;
         if (modalGroupName) modalGroupName.textContent = groupNameText;
 
         const anteroom = (item['控え室'] || '').toString().trim();
         const modalAnteroomEl = document.getElementById('modal-anteroom-info');
         if (modalAnteroomEl) {
             if (anteroom) {
-                // スマホ表示時は「控え室：」を省いて「🏠 教室名」にする
-                const isMobile = window.innerWidth <= 600;
-                modalAnteroomEl.textContent = isMobile ? `🏠 ${anteroom}` : `🏠 控え室: ${anteroom}`;
+                modalAnteroomEl.setAttribute('data-room', anteroom);
+                modalAnteroomEl.innerHTML = `
+                    <span class="full-label">🏠 控え室: ${anteroom}</span>
+                    <span class="short-label">🏠 ${anteroom}</span>
+                `;
                 modalAnteroomEl.classList.remove('hidden');
             } else {
                 modalAnteroomEl.classList.add('hidden');
@@ -1031,7 +1020,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (editItemKey) editItemKey.addEventListener('change', updateOldValueDisplay);
 
-    // サイズ記憶・復元機能
     const savedSize = localStorage.getItem('shibaurafes_card_size') || 'md';
 
     sizeBtns.forEach(btn => {

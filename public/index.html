@@ -51,7 +51,6 @@
                     <div class="modal-title-row">
                         <span class="floor-badge" id="modal-floor">1F</span>
                         <h2 id="modal-room-name">101教室</h2>
-                        <!-- 控え室 -->
                         <span id="modal-anteroom-info" class="anteroom-badge hidden"></span>
                         <span class="group-tag" id="modal-group-name">団体名</span>
                     </div>
@@ -84,31 +83,29 @@
                             <button id="step-next-btn" class="back-btn">次へ ▶</button>
                         </div>
 
-                        <!-- ワンタップステータス更新ボタン群（色・スタイル復元） -->
-                        <div id="quick-status-actions" class="status-actions"
-                            style="width: 100%; display: flex; gap: 6px; margin-top: 4px;">
-                            <button class="btn-action btn-none" data-val="未実施"
-                                style="flex:1; padding:6px; font-weight:bold; background:#e2e3e5; color:#383d41; border:1px solid #ced4da; border-radius:4px; cursor:pointer;">
+                        <!-- ワンタップステータス更新ボタン群 -->
+                        <div id="quick-status-actions" class="status-actions">
+                            <button class="btn-action btn-none" data-val="未実施">
                                 <span class="btn-icon">⚪ </span>未実施
                             </button>
-                            <button class="btn-action btn-request" data-val="依頼中"
-                                style="flex:1; padding:6px; font-weight:bold; background:#ffc107; color:#333; border:none; border-radius:4px; cursor:pointer;">
+                            <button class="btn-action btn-request" data-val="依頼中">
                                 <span class="btn-icon">🟡 </span>依頼中
                             </button>
-                            <button class="btn-action btn-issue" data-val="不備あり"
-                                style="flex:1; padding:6px; font-weight:bold; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;">
+                            <button class="btn-action btn-issue" data-val="不備あり">
                                 <span class="btn-icon">⚠️ </span>不備あり
                             </button>
-                            <button class="btn-action btn-complete" data-val="完了"
-                                style="flex:1; padding:6px; font-weight:bold; background:#28a745; color:white; border:none; border-radius:4px; cursor:pointer;">
+                            <button class="btn-action btn-complete" data-val="完了">
                                 <span class="btn-icon">✅ </span>完了
                             </button>
                         </div>
                     </div>
 
                     <div class="assign-action-box" id="assign-action-area">
-                        <span>担当者: <strong id="val-assigned-user">未登録</strong></span>
-                        <div>
+                        <div class="assigned-user-wrapper">
+                            <span>担当者: </span>
+                            <strong id="val-assigned-user" class="assigned-user-text">未登録</strong>
+                        </div>
+                        <div class="assign-btn-group">
                             <button id="modal-claim-btn" class="claim-btn">自分が担当する</button>
                             <button id="modal-unclaim-btn" class="unclaim-btn hidden">担当を外す</button>
                         </div>
@@ -242,8 +239,7 @@
                                     <input type="text" id="edit-dest-note" placeholder="例: 201教室が満杯のため分散移動">
                                 </div>
 
-                                <button id="save-dest-btn" class="save-btn"
-                                    style="background-color: #0275d8;">移動先を更新してログ保存</button>
+                                <button id="save-dest-btn" class="save-btn" style="background-color: #0275d8;">移動先を更新してログ保存</button>
                             </div>
                         </div>
 

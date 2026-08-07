@@ -56,7 +56,9 @@ h1 {
     font-weight: bold;
 }
 
-/* --- 検索とサイズ切り替えエリア --- */
+/* =========================================================
+   🔍 検索バー ＆ サイズ切り替えエリア（デザイン復元）
+   ========================================================= */
 .controls-container {
     display: flex;
     gap: 8px;
@@ -72,15 +74,71 @@ h1 {
     align-items: center;
 }
 
-#search-input {
+.search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
     width: 100%;
-    padding: 10px 14px;
-    font-size: 16px;
-    box-sizing: border-box;
-    border: 1px solid #ced4da;
-    border-radius: 8px;
     background: #ffffff;
-    box-shadow: inset 2px 2px 4px rgba(180, 190, 210, 0.2);
+    border-radius: 24px;
+    padding: 4px 12px;
+    box-sizing: border-box;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: all 0.2s ease;
+}
+
+.search-input-wrapper:focus-within {
+    box-shadow: 0 4px 16px rgba(0, 123, 255, 0.2);
+}
+
+.search-icon {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-right: 8px;
+    user-select: none;
+}
+
+#search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    padding: 8px 0;
+    font-size: 0.95rem;
+    color: #2c3e50;
+    width: 100%;
+    box-shadow: none !important;
+}
+
+#search-input::placeholder {
+    color: #adb5bd;
+    font-size: 0.85rem;
+}
+
+.search-clear-btn {
+    background: #ced4da;
+    color: #ffffff;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-left: 6px;
+    padding: 0;
+    line-height: 1;
+    transition: background 0.15s ease;
+}
+
+.search-clear-btn:hover {
+    background: #adb5bd;
+}
+
+.search-clear-btn.hidden {
+    display: none !important;
 }
 
 .size-selector {
@@ -145,27 +203,7 @@ h1 {
 .floor-container.size-sm .group-name {
     font-size: 0.72rem;
     padding: 2px 6px;
-    max-width: 110px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.floor-container.size-sm .room-title-area {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
-.floor-container.size-sm .assignee-sub-box {
-    margin-top: 2px;
-}
-
-.floor-container.size-sm .assignee-badge,
-.floor-container.size-sm .claim-card-btn {
-    margin-left: 0;
-    font-size: 0.68rem;
-    padding: 1px 6px;
+    max-width: 50%;
 }
 
 .floor-container.size-sm .card-detail-rows {
@@ -203,14 +241,6 @@ h1 {
     font-size: 1.15rem;
 }
 
-.floor-container.size-md .group-name {
-    font-size: 0.8rem;
-    max-width: 150px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 /* --- カードサイズ：大 (size-lg) --- */
 .floor-container.size-lg .card-grid {
     grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
@@ -223,15 +253,6 @@ h1 {
 
 .floor-container.size-lg .room-title {
     font-size: 1.3rem;
-}
-
-.floor-container.size-lg .group-name {
-    font-size: 0.9rem;
-    padding: 3px 10px;
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .floor-container.size-lg .card-detail-rows {
@@ -267,21 +288,22 @@ h1 {
                 -2px -2px 6px rgba(255, 255, 255, 0.7);
 }
 
-.card-header {
+/* 1行目：教室番号 ＋ 団体名（右端配置＆長文省略設定） */
+.card-header-top {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-}
-
-.room-title-area {
-    display: flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 4px;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
 }
 
 .room-title {
     font-weight: bold;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0;
 }
 
 .group-name {
@@ -289,10 +311,84 @@ h1 {
     background: #f1f3f5;
     border-radius: 4px;
     padding: 2px 8px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 55%;
+    flex-shrink: 1;
+    text-align: right;
+}
+
+/* 2行目：担当者（教室番号の下＆長文省略設定） */
+.card-assignee-row {
+    margin-top: 4px;
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+
+.assignee-badge {
+    font-size: 0.72rem;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 12px;
+    background-color: #e7f5ff;
+    color: #1971c2;
+    border: 1px solid #a5d8ff;
+    display: inline-block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+}
+
+.assignee-badge.unassigned {
+    background-color: #f1f3f5;
+    color: #868e96;
+    border-color: #ced4da;
+}
+
+.claim-card-btn {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    background-color: #e7f5ff;
+    color: #1971c2;
+    border: 1px solid #a5d8ff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
     white-space: nowrap;
 }
 
-/* ★ 明るい背景 ＆ 内側のへこみデザイン詳細枠 ★ */
+.claim-card-btn:hover {
+    background-color: #d0ebff;
+}
+
+.unclaim-btn {
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-left: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.unclaim-btn:hover {
+    background: #bd2130;
+}
+
+.unclaim-btn.hidden {
+    display: none;
+}
+
 .card-detail-rows {
     margin-top: 8px;
     font-size: 0.82rem;
@@ -411,62 +507,6 @@ h1 {
     color: #155724;
 }
 
-/* 担当者バッジ */
-.assignee-badge {
-    font-size: 0.72rem;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 12px;
-    background-color: #e7f5ff;
-    color: #1971c2;
-    border: 1px solid #a5d8ff;
-    margin-left: 4px;
-    display: inline-flex;
-    align-items: center;
-}
-
-.assignee-badge.unassigned {
-    background-color: #f1f3f5;
-    color: #868e96;
-    border-color: #ced4da;
-}
-
-.claim-card-btn {
-    font-size: 0.7rem;
-    padding: 2px 6px;
-    background-color: #e7f5ff;
-    color: #1971c2;
-    border: 1px solid #a5d8ff;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: bold;
-    margin-left: 4px;
-}
-
-.claim-card-btn:hover {
-    background-color: #d0ebff;
-}
-
-.unclaim-btn {
-    padding: 4px 10px;
-    font-size: 0.78rem;
-    background: #dc3545;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-weight: bold;
-    cursor: pointer;
-    margin-left: 4px;
-}
-
-.unclaim-btn:hover {
-    background: #bd2130;
-}
-
-.unclaim-btn.hidden {
-    display: none;
-}
-
 /* --- モーダル基本構造 --- */
 .modal {
     position: fixed;
@@ -514,117 +554,31 @@ h1 {
     box-shadow: 0 10px 30px rgba(166, 180, 200, 0.35);
 }
 
-/* =========================================================
-   📱 スマホ向け（600px以下）
-   ========================================================= */
-@media (max-width: 600px) {
-    .modal {
-        align-items: flex-end;
-    }
-
-    .modal-content {
-        border-top-left-radius: 20px;
-        border-top-right-radius: 20px;
-        border-bottom-left-radius: 0;
-        border-bottom-right-radius: 0;
-        animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        padding-bottom: 12px;
-    }
-
-    /* スマホ時は控え室の文字を省略して「🏠 教室名」にする */
-    .anteroom-badge {
-        font-size: 0.75rem;
-    }
-    .anteroom-badge::before {
-        content: "🏠 ";
-    }
-
-    @keyframes slideUp {
-        from {
-            transform: translateY(100%);
-        }
-        to {
-            transform: translateY(0);
-        }
-    }
-}
-
-/* =========================================================
-   💻 パソコン向け（601px以上）
-   ========================================================= */
-@media (min-width: 601px) {
-    .modal {
-        align-items: center;
-    }
-
-    .modal-content {
-        border-radius: 20px;
-        animation: popCenter 0.18s ease-out;
-    }
-
-    @keyframes popCenter {
-        from {
-            opacity: 0;
-            transform: scale(0.95);
-        }
-        to {
-            opacity: 1;
-            transform: scale(1);
-        }
-    }
-}
-
-/* ★ ×ボタン：スクロールバーや文字とかぶらない最適な位置に固定 ★ */
-.close-btn {
-    position: absolute;
-    top: 14px;
-    right: 14px;
-    background: #f7f9fc;
-    border: none;
-    font-size: 1.4rem;
-    color: #888;
-    cursor: pointer;
-    z-index: 50;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 2px 2px 5px rgba(180, 190, 210, 0.3),
-                -2px -2px 5px #ffffff;
-}
-
-.close-btn:active {
-    box-shadow: inset 2px 2px 4px rgba(180, 190, 210, 0.3),
-                inset -2px -2px 4px #ffffff;
-}
-
+/* モーダルヘッダー全体枠 */
 .modal-header {
     margin-bottom: 18px;
     border-bottom: 1px dashed #ced4da;
     padding-bottom: 12px;
-    padding-right: 35px; /* ×ボタンと文字が被らないよう右側に余裕を持たせる */
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
+    padding-right: 48px;
     position: relative;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.modal-header > div {
+.modal-header-main {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+/* 1行目：階数・教室番号 ➔ 控え室 ➔ 団体名（右寄せ） */
+.modal-title-row {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.modal-header h2 {
-    margin: 0;
-    font-size: 1.3rem;
-    line-height: 1;
-    display: inline-block;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
 }
 
 .floor-badge {
@@ -634,21 +588,140 @@ h1 {
     font-weight: bold;
     padding: 3px 8px;
     border-radius: 4px;
-    margin: 0;
-    line-height: 1;
-    display: inline-flex;
-    align-items: center;
+    flex-shrink: 0;
 }
 
-.group-tag {
-    font-size: 0.8rem;
+.modal-title-row h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+/* 2行目：教室番号の下に置く担当者バッジ */
+.modal-assignee-row {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    margin-top: 2px;
+}
+
+.modal-assignee-row .assignee-badge {
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 控え室バッジ */
+.anteroom-badge {
+    font-size: 0.75rem;
+    font-weight: bold;
+    background-color: #fff4e6;
+    color: #d9480f;
+    border: 1px solid #ffd8a8;
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.anteroom-badge .full-label {
+    display: inline;
+}
+.anteroom-badge .short-label {
+    display: none;
+}
+
+/* 団体名：右寄せ ＆ 溢れたら ... で省略 */
+#modal-group-name {
+    margin-left: auto;
+    font-size: 0.75rem;
     color: #6c757d;
     background: #f1f3f5;
     padding: 4px 8px;
     border-radius: 4px;
-    line-height: 1;
-    display: inline-flex;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex-shrink: 1;
+}
+
+/* モーダル下部の担当者操作エリア調整 */
+.assign-action-box {
+    display: flex;
+    justify-content: space-between;
     align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.assigned-user-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.assigned-user-wrapper span {
+    flex-shrink: 0;
+    color: #495057;
+}
+
+.assigned-user-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+    color: #1a252f;
+}
+
+.assign-btn-group {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+/* ×（閉じる）ボタン */
+.close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: #f7f9fc;
+    border: none;
+    font-size: 1.5rem;
+    color: #666;
+    cursor: pointer;
+    z-index: 50;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 2px 2px 6px rgba(180, 190, 210, 0.35),
+                -2px -2px 6px #ffffff;
+    transition: all 0.15s ease;
+}
+
+.close-btn:hover {
+    color: #333;
+    background: #eef2f7;
+}
+
+.close-btn:active {
+    box-shadow: inset 2px 2px 4px rgba(180, 190, 210, 0.3),
+                inset -2px -2px 4px #ffffff;
 }
 
 .info-section {
@@ -726,24 +799,31 @@ h1 {
     cursor: pointer;
 }
 
-/* ★ 進捗変更アクションボタンの浮き上がり（ニューモフィズム）化 ★ */
+/* 進捗チェックボタン配置 */
 #quick-status-actions {
     display: flex;
     gap: 6px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap !important;
+    width: 100%;
+    box-sizing: border-box;
     margin-top: 8px;
 }
 
 #quick-status-actions .btn-action {
+    flex: 1;
+    white-space: nowrap !important;
     border: none !important;
     border-radius: 8px !important;
-    padding: 6px 12px !important;
+    padding: 8px 4px !important;
     font-size: 0.8rem !important;
     font-weight: bold !important;
     cursor: pointer;
     transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 3px 3px 6px rgba(166, 180, 200, 0.3),
                 -3px -3px 6px #ffffff !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 #quick-status-actions .btn-action:hover {
@@ -758,15 +838,26 @@ h1 {
                 inset -2px -2px 4px #ffffff !important;
 }
 
-.assign-action-box {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 8px;
-    padding: 6px 10px;
-    background: #f8f9fa;
-    border-radius: 6px;
-    font-size: 0.8rem;
+/* 各ボタンの配色定義 */
+#quick-status-actions .btn-none {
+    background-color: #e2e3e5 !important;
+    color: #383d41 !important;
+    border: 1px solid #ced4da !important;
+}
+
+#quick-status-actions .btn-request {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+}
+
+#quick-status-actions .btn-issue {
+    background-color: #dc3545 !important;
+    color: #ffffff !important;
+}
+
+#quick-status-actions .btn-complete {
+    background-color: #28a745 !important;
+    color: #ffffff !important;
 }
 
 .claim-btn {
@@ -776,12 +867,14 @@ h1 {
     color: white;
     font-weight: bold;
     cursor: pointer;
+    white-space: nowrap;
 }
 
 .claim-btn:hover {
     background: #138496;
 }
 
+/* 机椅子一覧テーブル */
 .detail-table {
     width: 100%;
     border-collapse: collapse;
@@ -794,35 +887,54 @@ h1 {
     box-shadow: 2px 2px 6px rgba(180, 190, 210, 0.2);
 }
 
+.detail-table th:nth-child(1),
+.detail-table td:nth-child(1) {
+    width: 16%;
+}
+
+.detail-table th:nth-child(2),
+.detail-table td:nth-child(2),
+.detail-table th:nth-child(3),
+.detail-table td:nth-child(3),
+.detail-table th:nth-child(4),
+.detail-table td:nth-child(4) {
+    width: 16%;
+}
+
+.detail-table th:nth-child(5),
+.detail-table td:nth-child(5) {
+    width: 36%;
+}
+
 .detail-table th,
 .detail-table td {
     border: 1px solid #ced4da;
-    padding: 8px 6px;
+    padding: 8px 4px;
     text-align: center;
     line-height: 1.4;
 }
 
 .detail-table thead th {
     background-color: #e9ecef;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: #495057;
 }
 
 .detail-table tbody th {
     background-color: #f8f9fa;
     font-weight: bold;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
 }
 
 .detail-table td {
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 500;
 }
 
 .highlight-move {
     color: #d9480f;
     font-weight: bold;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     background-color: #fff4e6;
 }
 
@@ -831,11 +943,10 @@ h1 {
     color: #1971c2;
     background-color: #f8f9fa;
     vertical-align: middle;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     word-break: break-all;
 }
 
-/* ★ 備考欄のレイアウトズレ修正 ＆ 凹みデザイン適用 ★ */
 .remarks-box {
     padding: 10px 12px !important;
     font-size: 0.85rem;
@@ -1055,19 +1166,6 @@ h1 {
     display: none !important;
 }
 
-.anteroom-badge {
-    font-size: 0.8rem;
-    font-weight: bold;
-    background-color: #fff4e6;
-    color: #d9480f;
-    border: 1px solid #ffd8a8;
-    padding: 2px 8px;
-    border-radius: 4px;
-    margin-left: 6px;
-    display: inline-flex;
-    align-items: center;
-}
-
 /* スクロールバーのデザインカスタマイズ */
 .modal-content::-webkit-scrollbar {
     width: 8px;
@@ -1087,8 +1185,37 @@ h1 {
     background: #94a3b8;
 }
 
-/* レスポンシブ微調整 */
+/* レスポンシブ調整 */
 @media (max-width: 600px) {
+    .modal {
+        align-items: flex-end;
+    }
+
+    .modal-content {
+        border-top-left-radius: 20px;
+        border-top-right-radius: 20px;
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+        animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        padding-bottom: 120px;
+    }
+
+    .anteroom-badge .full-label {
+        display: none;
+    }
+    .anteroom-badge .short-label {
+        display: inline;
+    }
+
+    #quick-status-actions .btn-action .btn-icon {
+        display: none !important;
+    }
+
+    #quick-status-actions .btn-action {
+        padding: 6px 2px !important;
+        font-size: 0.72rem !important;
+    }
+
     .inline-inputs {
         flex-direction: column;
         align-items: stretch;
@@ -1098,10 +1225,6 @@ h1 {
     .inline-inputs .arrow {
         text-align: center;
         transform: rotate(90deg);
-    }
-
-    .modal-content {
-        padding-bottom: 120px;
     }
 
     .floor-container.size-sm .card-grid {
@@ -1115,7 +1238,7 @@ h1 {
     }
 
     .floor-container.size-sm .group-name {
-        max-width: 55px !important;
+        max-width: 50% !important;
         font-size: 0.65rem !important;
     }
 
@@ -1134,6 +1257,37 @@ h1 {
 
     .floor-container.size-sm .text-particle {
         margin: 0 1px !important;
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(100%);
+        }
+        to {
+            transform: translateY(0);
+        }
+    }
+}
+
+@media (min-width: 601px) {
+    .modal {
+        align-items: center;
+    }
+
+    .modal-content {
+        border-radius: 20px;
+        animation: popCenter 0.18s ease-out;
+    }
+
+    @keyframes popCenter {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
     }
 }
 
