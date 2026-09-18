@@ -822,11 +822,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ★ 数量変更処理（単一項目のみ更新＆変更があった項目のみ1件ログ記録）
     if (saveQtyBtn) {
         saveQtyBtn.addEventListener('click', async () => {
             if (!currentSelectedRoom || !currentUser || isGroupUser() || isGuestUser()) return;
 
-            const selectedKey = editItemKey.value;
+            const selectedKey = editItemKey.value; // 例: "机α（元の数）"
             const oldValue = parseInt(editOldVal.value || 0, 10);
             const newValue = parseInt(editNewVal.value || 0, 10);
             const note = editNote.value.trim();
@@ -841,75 +842,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            let category = '机α';
-            if (selectedKey.includes('机β')) category = '机β';
-            else if (selectedKey.includes('椅子')) category = '椅子';
-
-            let targetType = '元の数';
-            if (selectedKey.includes('使用数')) targetType = '使用数';
-            else if (selectedKey.includes('移動数')) targetType = '移動数';
-
-            let curOrig = parseInt(currentSelectedRoom[`${category}（元の数）`] || 0, 10);
-            let curUsed = parseInt(currentSelectedRoom[`${category}（使用数）`] || 0, 10);
-            let curMove = parseInt(currentSelectedRoom[`${category}（移動数）`] || 0, 10);
-
-            if (targetType === '使用数' && newValue > curOrig) {
-                alert(`エラー: 使用数（${newValue}）が元の数（${curOrig}）を超えています！`);
-                return;
-            }
-            if (targetType === '移動数' && newValue > curOrig) {
-                alert(`エラー: 移動数（${newValue}）が元の数（${curOrig}）を超えています！`);
-                return;
-            }
-
-            if (targetType === '元の数') {
-                const diff = newValue - curOrig;
-                curOrig = newValue;
-                curUsed = Math.max(0, curUsed + diff);
-                curMove = Math.max(0, curOrig - curUsed);
-            } else if (targetType === '使用数') {
-                curUsed = newValue;
-                curMove = Math.max(0, curOrig - curUsed);
-            } else if (targetType === '移動数') {
-                curMove = newValue;
-                curUsed = Math.max(0, curOrig - curMove);
-            }
-
             try {
                 saveQtyBtn.disabled = true;
                 saveQtyBtn.textContent = '更新中...';
 
-                const detailLogNote = `[${selectedKey}を${oldValue}➔${newValue}に変更] (結果➔ 元:${curOrig}, 使用:${curUsed}, 移動:${curMove}) ${note ? 'メモ:' + note : ''}`;
+                // 選択された項目（例: 机α（元の数））のみをピンポイントで更新・ログ保存
+                const res = await fetch('/api/update-quantity', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        rowIndex: currentSelectedRoom.rowIndex,
+                        roomName: currentSelectedRoom['教室名'],
+                        userName: currentUser.username,
+                        itemKey: selectedKey,
+                        oldValue: String(oldValue),
+                        newValue: String(newValue),
+                        note: note
+                    })
+                });
 
-                const updateTargets = [
-                    { key: `${category}（元の数）`, val: curOrig, old: parseInt(currentSelectedRoom[`${category}（元の数）`] || 0, 10) },
-                    { key: `${category}（使用数）`, val: curUsed, old: parseInt(currentSelectedRoom[`${category}（使用数）`] || 0, 10) },
-                    { key: `${category}（移動数）`, val: curMove, old: parseInt(currentSelectedRoom[`${category}（移動数）`] || 0, 10) }
-                ];
-
-                for (const u of updateTargets) {
-                    await fetch('/api/update-quantity', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            rowIndex: currentSelectedRoom.rowIndex,
-                            roomName: currentSelectedRoom['教室名'],
-                            userName: currentUser.username,
-                            itemKey: u.key,
-                            oldValue: String(u.old),
-                            newValue: String(u.val),
-                            note: detailLogNote
-                        })
-                    });
-                }
-
-                alert(`成功: ${category} の数量（元:${curOrig} / 使用:${curUsed} / 移動:${curMove}）を更新しスプレッドシートに保存しました！`);
-                resetModalForms();
-                await fetchData();
-                const updatedRoom = classroomData.find(r => r.rowIndex === currentSelectedRoom.rowIndex);
-                if (updatedRoom) {
-                    currentSelectedRoom = updatedRoom;
-                    openModal(updatedRoom);
+                const result = await res.json();
+                if (result.success) {
+                    alert(`成功: ${selectedKey} を ${oldValue} ➔ ${newValue} に更新しました！`);
+                    resetModalForms();
+                    await fetchData();
+                    const updatedRoom = classroomData.find(r => r.rowIndex === currentSelectedRoom.rowIndex);
+                    if (updatedRoom) {
+                        currentSelectedRoom = updatedRoom;
+                        openModal(updatedRoom);
+                    }
+                } else {
+                    alert('更新失敗: ' + result.error);
                 }
             } catch (err) {
                 console.error(err);
