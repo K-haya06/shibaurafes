@@ -27,7 +27,7 @@ if (process.env.GOOGLE_CREDENTIALS_JSON) {
 
 const sheets = google.sheets({ version: 'v4', auth });
 
-// ★ 列インデックス（0起点）を A1 表記の列文字（A, B... Z, AA, AB, AC, AD...）へ安全変換する関数
+// 列インデックス（0起点）を A1 表記の列文字（A, B... Z, AA, AB...）へ変換する関数
 function colIndexToLetter(index) {
     let temp;
     let letter = '';
@@ -39,8 +39,7 @@ function colIndexToLetter(index) {
     return letter;
 }
 
-// --- ログ記録用関数（「操作ログ」シートの列構造に対応） ---
-// A: 日時 / B: ユーザー名 / C: 教室名 / D: 変更項目 / E: 変更前 / F: 変更後 / G: 備考メモ
+// --- ログ記録用関数（「操作ログ」シートへ書き込み） ---
 async function appendLog(roomName, userName, itemKey, oldValue, newValue, note) {
     try {
         const timestamp = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
@@ -61,7 +60,8 @@ async function appendLog(roomName, userName, itemKey, oldValue, newValue, note) 
             },
         });
     } catch (err) {
-        console.error('ログ書き込みエラー:', err);
+        // ターミナルログを出力しないようコメントアウト
+        // console.error('ログ書き込みエラー:', err);
     }
 }
 
@@ -147,20 +147,18 @@ async function syncRequestStatuses(managementRows, preparationRows, cleanupRows)
     }
 }
 
-// --- ログイン API（新しいシート配列対応版） ---
-// 列構成: A:ID / B:ユーザー名 / C:パスワード / D:パスワードハッシュ / E:役割 / F:教室名 / G:有効
+// --- ログイン API ---
 app.post('/api/login', async (req, res) => {
     try {
         const { username, password } = req.body;
 
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: process.env.SPREADSHEET_ID,
-            range: "'ユーザー'!A2:G", // A列からG列まで取得
+            range: "'ユーザー'!A2:G",
         });
 
         const rows = response.data.values || [];
 
-        // ユーザー名(B列=index 1)とパスワード(C列=index 2)を照合し、アカウントが有効か確認
         const user = rows.find(row => {
             const dbUser = (row[1] || '').trim();
             const dbPass = (row[2] || '').trim();
@@ -182,12 +180,11 @@ app.post('/api/login', async (req, res) => {
             res.json({ success: false, message: 'ユーザー名またはパスワードが正しくないか、アカウントが無効です' });
         }
     } catch (error) {
-        console.error('ログインAPIエラー:', error);
         res.status(500).json({ error: 'ログイン処理に失敗しました' });
     }
 });
 
-// ★ 全教室データ取得 API（AD列まで拡張）
+// --- 全教室データ取得 API ---
 app.get('/api/classrooms', async (req, res) => {
     try {
         const [response, preparationResponse, cleanupResponse] = await Promise.all([
@@ -232,18 +229,16 @@ app.get('/api/classrooms', async (req, res) => {
 
         res.json(data);
     } catch (error) {
-        console.error('データ取得エラー:', error);
         res.status(500).json({ error: 'データの取得に失敗しました' });
     }
 });
 
-// ★ 進捗更新・担当者変更 API（AD列・26列超え列名変換に対応）
+// --- 進捗更新・担当者変更 API ---
 app.post('/api/update', async (req, res) => {
     try {
         const { rowIndex, roomName, columnName, value, action, userName } = req.body;
         const targetRowIndex = Number(rowIndex);
 
-        // ヘッダー情報を取得（AD1まで拡張）
         const headersResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: process.env.SPREADSHEET_ID,
             range: "'管理データ'!A1:AD1",
@@ -255,14 +250,11 @@ app.post('/api/update', async (req, res) => {
             return res.status(400).json({ error: '「担当者」列が存在しません' });
         }
         
-        // ★ 安全な列記号取得（colIndexToLetter を使用）
         const assigneeColLetter = colIndexToLetter(assigneeColIdx);
 
-        // --- 担当者の追加・解除処理 ---
         if (action === 'claim' || action === 'unclaim') {
 
             if (action === 'claim') {
-                // 1. 他の教室で担当になっている場所があれば、事前に解除する
                 const allRowsResponse = await sheets.spreadsheets.values.get({
                     spreadsheetId: process.env.SPREADSHEET_ID,
                     range: "'管理データ'!A2:AD100",
@@ -288,7 +280,6 @@ app.post('/api/update', async (req, res) => {
                     }
                 }
 
-                // 2. 新しい教室に自分を追加する
                 const targetRoomResponse = await sheets.spreadsheets.values.get({
                     spreadsheetId: process.env.SPREADSHEET_ID,
                     range: `'管理データ'!A${targetRowIndex}:AD${targetRowIndex}`,
@@ -309,7 +300,6 @@ app.post('/api/update', async (req, res) => {
                 });
 
             } else if (action === 'unclaim') {
-                // 担当解除処理
                 const targetRoomResponse = await sheets.spreadsheets.values.get({
                     spreadsheetId: process.env.SPREADSHEET_ID,
                     range: `'管理データ'!A${targetRowIndex}:AD${targetRowIndex}`,
@@ -328,7 +318,6 @@ app.post('/api/update', async (req, res) => {
             }
 
         } else {
-            // --- 進捗ステータスの更新処理 ---
             const targetColIndex = headers.indexOf(columnName);
             if (targetColIndex === -1) {
                 return res.status(400).json({ error: `指定された列「${columnName}」が存在しません` });
@@ -341,7 +330,6 @@ app.post('/api/update', async (req, res) => {
             const rowData = roomResponse.data.values ? roomResponse.data.values[0] : [];
             const oldValue = rowData[targetColIndex] || '未実施';
             
-            // ★ 安全な列記号取得（AA, AB, AC, AD等）
             const colLetter = colIndexToLetter(targetColIndex);
 
             await sheets.spreadsheets.values.update({
@@ -358,12 +346,11 @@ app.post('/api/update', async (req, res) => {
 
         res.json({ success: true });
     } catch (error) {
-        console.error('更新APIエラー:', error);
         res.status(500).json({ error: 'データの更新に失敗しました' });
     }
 });
 
-// ★ 数量・移動先手動更新 API（AD列・26列超え列名変換に対応）
+// --- 数量・移動先手動更新 API ---
 app.post('/api/update-quantity', async (req, res) => {
     try {
         const { rowIndex, roomName, userName, itemKey, oldValue, newValue, note } = req.body;
@@ -381,7 +368,6 @@ app.post('/api/update-quantity', async (req, res) => {
             return res.status(400).json({ error: `スプレッドシートに「${itemKey}」列が存在しません` });
         }
 
-        // ★ 安全な列記号取得（colIndexToLetter を使用）
         const colLetter = colIndexToLetter(targetColIndex);
 
         await sheets.spreadsheets.values.update({
@@ -395,7 +381,6 @@ app.post('/api/update-quantity', async (req, res) => {
 
         res.json({ success: true });
     } catch (error) {
-        console.error('数量更新エラー:', error);
         res.status(500).json({ error: '数量の更新に失敗しました' });
     }
 });
@@ -425,7 +410,6 @@ app.get('/api/logs/:roomName', async (req, res) => {
 
         res.json(filteredLogs);
     } catch (error) {
-        console.error('ログ取得エラー:', error);
         res.status(500).json({ error: 'ログの取得に失敗しました' });
     }
 });

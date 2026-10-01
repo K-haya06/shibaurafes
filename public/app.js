@@ -166,38 +166,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             lastDataHash = generateDataHash(newData);
-            const toast = document.getElementById('update-toast');
-            if (toast) toast.classList.remove('show');
-
             renderFilteredCards();
         } catch (err) {
             console.error('データ取得失敗:', err);
         }
     }
 
-    function showUpdateNotification() {
-        let toast = document.getElementById('update-toast');
-        if (!toast) {
-            toast = document.createElement('div');
-            toast.id = 'update-toast';
-            toast.className = 'update-toast';
-            toast.innerHTML = `
-                <span>他の人がデータを更新しました</span>
-                <button id="toast-refresh-btn">更新する</button>
-            `;
-            document.body.appendChild(toast);
-
-            document.getElementById('toast-refresh-btn').addEventListener('click', async () => {
-                toast.classList.remove('show');
-                await fetchData();
-            });
-        }
-
-        if (modal && modal.classList.contains('hidden')) {
-            toast.classList.add('show');
-        }
-    }
-
+    // ★ ポーリングによる自動静音チェック＆即座反映処理
     async function checkSilentUpdate() {
         if (!currentUser) return;
         try {
@@ -205,9 +180,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const newData = await res.json();
             const newHash = generateDataHash(newData);
 
+            // データのハッシュが変わった（他の誰かが更新した）場合
             if (lastDataHash && lastDataHash !== newHash) {
+
+                // モーダルが開いている場合
                 if (modal && !modal.classList.contains('hidden') && currentSelectedRoom) {
                     const activeEl = document.activeElement;
+                    // 入力欄にフォーカス中（入力作業中）の場合は画面書き換えをスキップ（入力バッティング防止）
                     const isEditing = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
 
                     if (!isEditing) {
@@ -241,7 +220,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         lastDataHash = newHash;
                     }
                 } else {
-                    showUpdateNotification();
+                    // モーダルを閉じている時は通知ボタンを出さずに自動でカード一覧を最新化
+                    classroomData = newData;
+                    renderFilteredCards();
                     lastDataHash = newHash;
                 }
             } else {
@@ -252,7 +233,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    setInterval(checkSilentUpdate, 30000);
+    // ★ 4秒ごとに自動的にバックグラウンド更新チェック（間隔は必要に応じて調整可能）
+    setInterval(checkSilentUpdate, 4000);
 
     function renderFilteredCards() {
         if (isGroupUser()) {
@@ -830,12 +812,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ★ 数量変更処理（単一項目のみ更新＆変更があった項目のみ1件ログ記録）
     if (saveQtyBtn) {
         saveQtyBtn.addEventListener('click', async () => {
             if (!currentSelectedRoom || !currentUser || isGroupUser() || isGuestUser()) return;
 
-            const selectedKey = editItemKey.value; // 例: "机α（元の数）"
+            const selectedKey = editItemKey.value;
             const oldValue = parseInt(editOldVal.value || 0, 10);
             const newValue = parseInt(editNewVal.value || 0, 10);
             const note = editNote.value.trim();
@@ -854,7 +835,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 saveQtyBtn.disabled = true;
                 saveQtyBtn.textContent = '更新中...';
 
-                // 選択された項目（例: 机α（元の数））のみをピンポイントで更新・ログ保存
                 const res = await fetch('/api/update-quantity', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
