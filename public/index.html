@@ -12,7 +12,7 @@
     <header>
         <h1>教室運営 机椅子移動管理</h1>
         <div class="user-info-area">
-            <span id="login-user-disp">👤 未ログイン</span>
+            <span id="login-user-disp">未ログイン</span>
             <button id="logout-btn" class="logout-btn hidden">ログアウト</button>
         </div>
         <button id="refresh-btn">最新情報に更新</button>
@@ -23,7 +23,7 @@
         <div class="controls-container">
             <div id="search-box-container" class="search-box-container">
                 <div class="search-input-wrapper">
-                    <span class="search-icon">🔍</span>
+                    <span class="search-icon" aria-hidden="true">検索</span>
                     <input type="text" id="search-input" placeholder="検索 (教室名・団体名・担当者・進捗状況など)...">
                     <button type="button" id="search-clear-btn" class="search-clear-btn hidden">&times;</button>
                 </div>
@@ -63,7 +63,7 @@
             <div class="modal-body">
                 <!-- 1. 担当者情報 -->
                 <section class="info-section">
-                    <h3>👤 教室責任者情報</h3>
+                    <h3>教室責任者情報</h3>
                     <div class="info-grid-2col">
                         <p><strong>責任者:</strong> <span id="val-leader">-</span></p>
                         <p><strong>副責任者:</strong> <span id="val-subleader">-</span></p>
@@ -72,7 +72,7 @@
 
                 <!-- 2. 進捗チェック操作 -->
                 <section class="info-section">
-                    <h3>✅ 進捗チェック</h3>
+                    <h3>進捗チェック</h3>
                     <div class="check-control-box" style="flex-direction: column; gap: 8px;">
                         <div class="step-header" style="width: 100%; justify-content: space-between;">
                             <button id="step-back-btn" class="back-btn">◀ 前へ</button>
@@ -86,16 +86,16 @@
                         <!-- ワンタップステータス更新ボタン群 -->
                         <div id="quick-status-actions" class="status-actions">
                             <button class="btn-action btn-none" data-val="未実施">
-                                <span class="btn-icon">⚪ </span>未実施
+                                未実施
                             </button>
                             <button class="btn-action btn-request" data-val="依頼中">
-                                <span class="btn-icon">🟡 </span>依頼中
+                                依頼中
                             </button>
                             <button class="btn-action btn-issue" data-val="不備あり">
-                                <span class="btn-icon">⚠️ </span>不備あり
+                                不備あり
                             </button>
                             <button class="btn-action btn-complete" data-val="完了">
-                                <span class="btn-icon">✅ </span>完了
+                                完了
                             </button>
                         </div>
                     </div>
@@ -114,7 +114,7 @@
 
                 <!-- 3. 机椅子の数量・移動先 -->
                 <section class="info-section">
-                    <h3>📦 机・椅子 一覧</h3>
+                    <h3>机・椅子 一覧</h3>
                     <table class="detail-table">
                         <thead>
                             <tr>
@@ -161,7 +161,7 @@
 
                 <!-- 5. 備考 -->
                 <section class="info-section">
-                    <h3>📝 備考</h3>
+                    <h3>備考</h3>
                     <div id="val-remarks" class="remarks-box">なし</div>
                 </section>
 
@@ -169,11 +169,11 @@
 
                 <!-- 6. 編集・ログ（委員会専用機能） -->
                 <details class="sub-feature-accordion" id="admin-feature-accordion">
-                    <summary>⚙️ 数量の変更・編集・ログ（委員会向け）</summary>
+                    <summary>数量の変更・編集・ログ（委員会向け）</summary>
                     <div class="accordion-content">
 
                         <div class="qty-edit-box">
-                            <h4 style="margin: 0 0 8px 0; color: #333;">📦 数量の手動変更</h4>
+                            <h4 style="margin: 0 0 8px 0; color: #333;">数量の手動変更</h4>
                             <div class="edit-grid">
                                 <div class="edit-group">
                                     <label>項目を選択</label>
@@ -209,7 +209,7 @@
                         </div>
 
                         <div class="qty-edit-box" style="margin-top: 16px;">
-                            <h4 style="margin: 0 0 8px 0; color: #333;">📍 移動先の変更・内訳追加</h4>
+                            <h4 style="margin: 0 0 8px 0; color: #333;">移動先の変更・内訳追加</h4>
                             <div class="edit-grid" style="background: #ffffff;">
                                 <div class="edit-group">
                                     <label>対象の家具</label>
@@ -240,7 +240,7 @@
                             </div>
                         </div>
 
-                        <h4>📜 変更履歴（ログ）</h4>
+                        <h4>変更履歴（ログ）</h4>
                         <ul id="log-list" class="log-list">
                             <li class="empty-log">読み込み中...</li>
                         </ul>
@@ -255,7 +255,7 @@
     <div id="login-modal" class="modal">
         <div class="modal-overlay"></div>
         <div class="modal-content login-content">
-            <h2>🔑 ログイン</h2>
+            <h2>ログイン</h2>
             <form id="login-form">
                 <div class="form-group">
                     <label for="login-username">ユーザー名</label>

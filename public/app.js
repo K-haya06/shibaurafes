@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (savedUser) {
             currentUser = JSON.parse(savedUser);
-            if (loginUserDisp) loginUserDisp.textContent = `👤 ${currentUser.username} (${currentUser.role})`;
+            if (loginUserDisp) loginUserDisp.textContent = `${currentUser.username} (${currentUser.role})`;
             if (logoutBtn) logoutBtn.classList.remove('hidden');
             if (loginModal) loginModal.classList.add('hidden');
 
@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             currentUser = null;
-            if (loginUserDisp) loginUserDisp.textContent = '👤 未ログイン';
+            if (loginUserDisp) loginUserDisp.textContent = '未ログイン';
             if (logoutBtn) logoutBtn.classList.add('hidden');
             if (loginModal) loginModal.classList.remove('hidden');
         }
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
             toast.id = 'update-toast';
             toast.className = 'update-toast';
             toast.innerHTML = `
-                <span>✨ 他の人がデータを更新しました</span>
+                <span>他の人がデータを更新しました</span>
                 <button id="toast-refresh-btn">更新する</button>
             `;
             document.body.appendChild(toast);
@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const floorTitle = document.createElement('div');
             floorTitle.className = 'floor-title';
-            floorTitle.innerHTML = `🏢 ${floor}`;
+            floorTitle.textContent = floor;
             floorSection.appendChild(floorTitle);
 
             const cardGrid = document.createElement('div');
@@ -354,12 +354,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const anteroom = (item['控え室'] || '').toString().trim();
                 const anteroomBadge = anteroom
-                    ? `<span class="card-anteroom-text" data-room="${anteroom}"><span class="full-label">🏠 控室:${anteroom}</span><span class="short-label">🏠 ${anteroom}</span></span>`
+                    ? `<span class="card-anteroom-text" data-room="${anteroom}"><span class="full-label">控室: ${anteroom}</span><span class="short-label">${anteroom}</span></span>`
                     : '';
 
                 let assigneeHtml = '';
                 if (assignee) {
-                    assigneeHtml = `<span class="assignee-badge">👤 ${assignee}</span>`;
+                    assigneeHtml = `<span class="assignee-badge">${assignee}</span>`;
                 } else if (!isGroupUser() && !isGuestUser()) {
                     assigneeHtml = `<button class="claim-card-btn">＋担当する</button>`;
                 }
@@ -459,10 +459,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (badgeEl) {
             if (assignee) {
                 badgeEl.className = 'assignee-badge';
-                badgeEl.textContent = `👤 担当: ${assignee}`;
+                badgeEl.textContent = `担当: ${assignee}`;
             } else {
                 badgeEl.className = 'assignee-badge unassigned';
-                badgeEl.textContent = '👤 未割り当て';
+                badgeEl.textContent = '未割り当て';
             }
         }
         if (valAssignedUser) {
@@ -504,8 +504,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (anteroom) {
                 modalAnteroomEl.setAttribute('data-room', anteroom);
                 modalAnteroomEl.innerHTML = `
-                    <span class="full-label">🏠 控え室: ${anteroom}</span>
-                    <span class="short-label">🏠 ${anteroom}</span>
+                    <span class="full-label">控え室: ${anteroom}</span>
+                    <span class="short-label">${anteroom}</span>
                 `;
                 modalAnteroomEl.classList.remove('hidden');
             } else {
@@ -707,8 +707,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const result = await res.json();
                     if (result.success) {
+                        if (targetVal === '完了' && currentStepIndex < checkSteps.length - 1) {
+                            currentStepIndex++;
+                        }
                         await fetchData();
                         if (currentSelectedRoom && currentSelectedRoom.rowIndex === targetRoomIndex) {
+                            const updatedRoom = classroomData.find(room => room.rowIndex === targetRoomIndex);
+                            if (updatedRoom) {
+                                currentSelectedRoom = updatedRoom;
+                                currentSelectedRoom._currentStepIndex = currentStepIndex;
+                            }
                             updateModalCheckArea();
                         }
                     }
@@ -807,7 +815,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.className = 'log-item';
                 li.innerHTML = `
                     <div class="log-meta">
-                        <span>👤 ${log.userName}</span>
+                        <span>${log.userName}</span>
                         <span>🕒 ${log.timestamp}</span>
                     </div>
                     <div class="log-body">
