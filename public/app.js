@@ -233,8 +233,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ★ 4秒ごとに自動的にバックグラウンド更新チェック（間隔は必要に応じて調整可能）
-    setInterval(checkSilentUpdate, 4000);
+
+    // ★ 30秒ごとに自動的にバックグラウンド更新チェック（間隔は必要に応じて調整可能）
+    setInterval(checkSilentUpdate, 30000);
 
     function renderFilteredCards() {
         if (isGroupUser()) {
