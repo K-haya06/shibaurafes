@@ -11,14 +11,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 let auth;
 
 if (process.env.GOOGLE_CREDENTIALS_JSON) {
-    // Render環境
     const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
     auth = new google.auth.GoogleAuth({
         credentials,
         scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 } else {
-    // ローカル開発環境
     auth = new google.auth.GoogleAuth({
         keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS || './google-key.json',
         scopes: ['https://www.googleapis.com/auth/spreadsheets'],
@@ -37,6 +35,19 @@ function colIndexToLetter(index) {
         index = Math.floor(index / 26) - 1;
     }
     return letter;
+}
+
+// 日時フォーマット関数 (YYYY/MM/DD HH:mm:ss)
+function getFormattedTimestamp() {
+    const now = new Date();
+    const jst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+    const yyyy = jst.getUTCFullYear();
+    const mm = String(jst.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(jst.getUTCDate()).padStart(2, '0');
+    const hh = String(jst.getUTCHours()).padStart(2, '0');
+    const min = String(jst.getUTCMinutes()).padStart(2, '0');
+    const ss = String(jst.getUTCSeconds()).padStart(2, '0');
+    return `${yyyy}/${mm}/${dd} ${hh}:${min}:${ss}`;
 }
 
 // --- ログ記録用関数（「操作ログ」シートへ書き込み） ---
@@ -60,90 +71,7 @@ async function appendLog(roomName, userName, itemKey, oldValue, newValue, note) 
             },
         });
     } catch (err) {
-        // ターミナルログを出力しないようコメントアウト
-        // console.error('ログ書き込みエラー:', err);
-    }
-}
-
-const requestSheetBlocks = [
-    { roomOffset: 0, groupOffset: 1, stepOffset: 2, timestampOffset: 3 },
-    { roomOffset: 7, groupOffset: 8, stepOffset: 9, timestampOffset: 10 },
-    { roomOffset: 14, groupOffset: 15, stepOffset: 16, timestampOffset: 17 },
-];
-
-function normalizeCell(value) {
-    return String(value || '').trim().toLowerCase();
-}
-
-async function syncRequestStatuses(managementRows, preparationRows, cleanupRows) {
-    if (!managementRows || managementRows.length < 2) return;
-
-    const headers = managementRows[0];
-    const managementByRoomAndGroup = new Map();
-    managementRows.slice(1).forEach((row, index) => {
-        const roomName = normalizeCell(row[2]);
-        const groupName = normalizeCell(row[3]);
-        if (roomName) {
-            managementByRoomAndGroup.set(`${roomName}\u0000${groupName}`, {
-                rowIndex: index + 2,
-                row,
-            });
-        }
-    });
-
-    const updates = [];
-    const queuedUpdateKeys = new Set();
-    for (const [sheetName, rows] of [
-        ['準備期間整理シート', preparationRows],
-        ['片付け期間整理シート', cleanupRows],
-    ]) {
-        (rows || []).slice(2).forEach(sourceRow => {
-            for (const block of requestSheetBlocks) {
-                const roomName = normalizeCell(sourceRow[block.roomOffset]);
-                const groupName = normalizeCell(sourceRow[block.groupOffset]);
-                const stepName = String(sourceRow[block.stepOffset] || '').trim();
-                const requestTimestamp = String(sourceRow[block.timestampOffset] || '').trim();
-                if (!roomName || !stepName || !requestTimestamp) continue;
-
-                const target = managementByRoomAndGroup.get(`${roomName}\u0000${groupName}`)
-                    || managementByRoomAndGroup.get(`${roomName}\u0000`);
-                const targetColumnIndex = headers.indexOf(stepName);
-                if (!target || targetColumnIndex === -1) continue;
-
-                const currentStatus = String(target.row[targetColumnIndex] || '').trim();
-                if (currentStatus === '完了' || currentStatus === '依頼中') continue;
-
-                const updateKey = `${target.rowIndex}:${targetColumnIndex}`;
-                if (queuedUpdateKeys.has(updateKey)) continue;
-                queuedUpdateKeys.add(updateKey);
-                updates.push({
-                    sheetName,
-                    roomName: sourceRow[block.roomOffset],
-                    rowIndex: target.rowIndex,
-                    columnIndex: targetColumnIndex,
-                    oldStatus: currentStatus || '未実施',
-                    stepName,
-                });
-            }
-        });
-    }
-
-    for (const update of updates) {
-        const columnLetter = colIndexToLetter(update.columnIndex);
-        await sheets.spreadsheets.values.update({
-            spreadsheetId: process.env.SPREADSHEET_ID,
-            range: `'管理データ'!${columnLetter}${update.rowIndex}`,
-            valueInputOption: 'USER_ENTERED',
-            requestBody: { values: [['依頼中']] },
-        });
-        await appendLog(
-            update.roomName,
-            'Discord申請連携',
-            update.stepName,
-            update.oldStatus,
-            '依頼中',
-            `${update.sheetName}の申請時刻を反映`
-        );
+        // エラーログ制御
     }
 }
 
@@ -187,39 +115,18 @@ app.post('/api/login', async (req, res) => {
 // --- 全教室データ取得 API ---
 app.get('/api/classrooms', async (req, res) => {
     try {
-        const [response, preparationResponse, cleanupResponse] = await Promise.all([
-            sheets.spreadsheets.values.get({
-                spreadsheetId: process.env.SPREADSHEET_ID,
-                range: "'管理データ'!A1:AD100",
-            }),
-            sheets.spreadsheets.values.get({
-                spreadsheetId: process.env.SPREADSHEET_ID,
-                range: "'準備期間整理シート'!A1:Z100",
-            }),
-            sheets.spreadsheets.values.get({
-                spreadsheetId: process.env.SPREADSHEET_ID,
-                range: "'片付け期間整理シート'!A1:Z100",
-            }),
-        ]);
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: process.env.SPREADSHEET_ID,
+            range: "'管理データ'!A1:AZ100",
+        });
 
         const rows = response.data.values;
         if (!rows || rows.length < 2) {
             return res.json([]);
         }
 
-        await syncRequestStatuses(
-            rows,
-            preparationResponse.data.values || [],
-            cleanupResponse.data.values || []
-        );
-
-        const refreshedResponse = await sheets.spreadsheets.values.get({
-            spreadsheetId: process.env.SPREADSHEET_ID,
-            range: "'管理データ'!A1:AD100",
-        });
-        const refreshedRows = refreshedResponse.data.values || rows;
-        const headers = refreshedRows[0];
-        const data = refreshedRows.slice(1).map((row, index) => {
+        const headers = rows[0];
+        const data = rows.slice(1).map((row, index) => {
             const obj = { rowIndex: index + 2 };
             headers.forEach((header, colIndex) => {
                 obj[header] = row[colIndex] || '';
@@ -241,7 +148,7 @@ app.post('/api/update', async (req, res) => {
 
         const headersResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: process.env.SPREADSHEET_ID,
-            range: "'管理データ'!A1:AD1",
+            range: "'管理データ'!A1:AZ1",
         });
         const headers = headersResponse.data.values[0];
         const assigneeColIdx = headers.indexOf('担当者');
@@ -253,11 +160,10 @@ app.post('/api/update', async (req, res) => {
         const assigneeColLetter = colIndexToLetter(assigneeColIdx);
 
         if (action === 'claim' || action === 'unclaim') {
-
             if (action === 'claim') {
                 const allRowsResponse = await sheets.spreadsheets.values.get({
                     spreadsheetId: process.env.SPREADSHEET_ID,
-                    range: "'管理データ'!A2:AD100",
+                    range: "'管理データ'!A2:AZ100",
                 });
                 const allRows = allRowsResponse.data.values || [];
 
@@ -282,7 +188,7 @@ app.post('/api/update', async (req, res) => {
 
                 const targetRoomResponse = await sheets.spreadsheets.values.get({
                     spreadsheetId: process.env.SPREADSHEET_ID,
-                    range: `'管理データ'!A${targetRowIndex}:AD${targetRowIndex}`,
+                    range: `'管理データ'!A${targetRowIndex}:AZ${targetRowIndex}`,
                 });
                 const targetRowData = targetRoomResponse.data.values ? targetRoomResponse.data.values[0] : [];
                 const targetAssigneeStr = targetRowData[assigneeColIdx] || '';
@@ -302,7 +208,7 @@ app.post('/api/update', async (req, res) => {
             } else if (action === 'unclaim') {
                 const targetRoomResponse = await sheets.spreadsheets.values.get({
                     spreadsheetId: process.env.SPREADSHEET_ID,
-                    range: `'管理データ'!A${targetRowIndex}:AD${targetRowIndex}`,
+                    range: `'管理データ'!A${targetRowIndex}:AZ${targetRowIndex}`,
                 });
                 const targetRowData = targetRoomResponse.data.values ? targetRoomResponse.data.values[0] : [];
                 const currentAssigneesStr = targetRowData[assigneeColIdx] || '';
@@ -318,25 +224,38 @@ app.post('/api/update', async (req, res) => {
             }
 
         } else {
-            const targetColIndex = headers.indexOf(columnName);
+            // ステータス更新（例: 「準備1次_Web」などWeb用列へ「完了 2026/10/12 10:05:00」と書き込み）
+            let targetColName = columnName;
+            if (!targetColName.endsWith('_Web')) {
+                // 「準備1次_表示用」や「準備_1次チェック」等のキーから書き込み先「〇〇_Web」列名を特定
+                const baseName = targetColName.replace('_表示用', '').replace('_チェック', '').replace('_', '');
+                targetColName = `${baseName}_Web`;
+            }
+
+            const targetColIndex = headers.indexOf(targetColName);
             if (targetColIndex === -1) {
-                return res.status(400).json({ error: `指定された列「${columnName}」が存在しません` });
+                return res.status(400).json({ error: `指定された書き込み列「${targetColName}」が存在しません` });
             }
 
             const roomResponse = await sheets.spreadsheets.values.get({
                 spreadsheetId: process.env.SPREADSHEET_ID,
-                range: `'管理データ'!A${targetRowIndex}:AD${targetRowIndex}`,
+                range: `'管理データ'!A${targetRowIndex}:AZ${targetRowIndex}`,
             });
             const rowData = roomResponse.data.values ? roomResponse.data.values[0] : [];
-            const oldValue = rowData[targetColIndex] || '未実施';
-            
+            const oldValueRaw = rowData[targetColIndex] || '未実施';
+            const oldValue = oldValueRaw.split(' ')[0] || '未実施';
+
+            // タイムスタンプ付与（例: "完了 2026/10/12 10:05:00"）
+            const timestampStr = getFormattedTimestamp();
+            const valueWithTimestamp = `${value} ${timestampStr}`;
+
             const colLetter = colIndexToLetter(targetColIndex);
 
             await sheets.spreadsheets.values.update({
                 spreadsheetId: process.env.SPREADSHEET_ID,
                 range: `'管理データ'!${colLetter}${targetRowIndex}`,
                 valueInputOption: 'USER_ENTERED',
-                requestBody: { values: [[value]] },
+                requestBody: { values: [[valueWithTimestamp]] },
             });
 
             if (oldValue !== value) {
@@ -358,7 +277,7 @@ app.post('/api/update-quantity', async (req, res) => {
 
         const headersResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: process.env.SPREADSHEET_ID,
-            range: "'管理データ'!A1:AD1",
+            range: "'管理データ'!A1:AZ1",
         });
 
         const headers = headersResponse.data.values[0];

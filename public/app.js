@@ -51,12 +51,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let lastDataHash = '';
 
     const checkSteps = [
-        { key: '準備_1次チェック', name: '準備 1次' },
-        { key: '準備_2次チェック', name: '準備 2次' },
-        { key: '準備_3次チェック', name: '準備 3次' },
-        { key: '片付け_1次チェック', name: '片付け 1次' },
-        { key: '片付け_2次チェック', name: '片付け 2次' },
-        { key: '片付け_3次チェック', name: '片付け 3次' }
+        { key: '準備1次_表示用', updateKey: '準備1次_Web', name: '準備 1次' },
+        { key: '準備2次_表示用', updateKey: '準備2次_Web', name: '準備 2次' },
+        { key: '準備3次_表示用', updateKey: '準備3次_Web', name: '準備 3次' },
+        { key: '片付け1次_表示用', updateKey: '片付け1次_Web', name: '片付け 1次' },
+        { key: '片付け2次_表示用', updateKey: '片付け2次_Web', name: '片付け 2次' },
+        { key: '片付け3次_表示用', updateKey: '片付け3次_Web', name: '片付け 3次' }
     ];
 
     function isGroupUser() {
