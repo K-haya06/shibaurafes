@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentSelectedRoom = null;
     let currentUser = null;
     let currentStepIndex = 0;
-    let lastDataHash = '';
+    let eventSource = null;
 
     const checkSteps = [
         { key: '準備1次_表示用', updateKey: '準備1次_Web', name: '準備 1次' },
@@ -59,14 +59,62 @@ document.addEventListener('DOMContentLoaded', () => {
         { key: '片付け3次_表示用', updateKey: '片付け3次_Web', name: '片付け 3次' }
     ];
 
-    function isGroupUser() {
-        if (!currentUser) return true;
-        return currentUser.role === '団体責任者' || currentUser.role === '団体副責任者';
+    // 新しい役割判定ルール: 「委員会」のみ編集権限を許可
+    function isCommitteeUser() {
+        return currentUser && currentUser.role === '委員会';
     }
 
-    function isGuestUser() {
-        if (!currentUser) return false;
-        return currentUser.role === 'ゲスト';
+    // --- SSE 接続処理 ---
+    function initSSE() {
+        if (eventSource) {
+            eventSource.close();
+        }
+
+        eventSource = new EventSource('/api/events');
+
+        eventSource.addEventListener('init', (e) => {
+            const data = JSON.parse(e.data);
+            updateClassroomData(data);
+        });
+
+        eventSource.addEventListener('data_updated', (e) => {
+            const data = JSON.parse(e.data);
+            updateClassroomData(data);
+        });
+
+        eventSource.onerror = () => {
+            // 切断時はブラウザ標準機能で自動再接続される
+        };
+    }
+
+    function updateClassroomData(newData) {
+        classroomData = newData.map(newItem => {
+            const oldItem = classroomData.find(old => old.rowIndex === newItem.rowIndex);
+            if (oldItem && oldItem._currentStepIndex !== undefined) {
+                newItem._currentStepIndex = oldItem._currentStepIndex;
+            }
+            return newItem;
+        });
+
+        if (modal && !modal.classList.contains('hidden') && currentSelectedRoom) {
+            const updatedRoom = classroomData.find(r => r.rowIndex === currentSelectedRoom.rowIndex);
+            if (updatedRoom) {
+                currentSelectedRoom = updatedRoom;
+                updateModalCheckArea();
+                updateAssigneeUI(updatedRoom['担当者']);
+
+                setSafeText('td-deskA-orig', updatedRoom['机α（元の数）'] || '0');
+                setSafeText('td-deskA-used', updatedRoom['机α（使用数）'] || '0');
+                setSafeText('td-deskA-move', updatedRoom['机α（移動数）'] || '0');
+                setSafeText('td-deskB-orig', updatedRoom['机β（元の数）'] || '0');
+                setSafeText('td-deskB-used', updatedRoom['机β（使用数）'] || '0');
+                setSafeText('td-deskB-move', updatedRoom['机β（移動数）'] || '0');
+                setSafeText('td-chair-orig', updatedRoom['椅子（元の数）'] || '0');
+                setSafeText('td-chair-used', updatedRoom['椅子（使用数）'] || '0');
+                setSafeText('td-chair-move', updatedRoom['椅子（移動数）'] || '0');
+            }
+        }
+        renderFilteredCards();
     }
 
     function checkLoginState() {
@@ -78,18 +126,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (logoutBtn) logoutBtn.classList.remove('hidden');
             if (loginModal) loginModal.classList.add('hidden');
 
+            // 全ユーザーに検索エリアを表示
             if (searchBoxContainer) {
-                if (isGroupUser()) {
-                    searchBoxContainer.classList.add('hidden');
-                } else {
-                    searchBoxContainer.classList.remove('hidden');
-                }
+                searchBoxContainer.classList.remove('hidden');
             }
+            initSSE();
         } else {
             currentUser = null;
             if (loginUserDisp) loginUserDisp.textContent = '未ログイン';
             if (logoutBtn) logoutBtn.classList.add('hidden');
             if (loginModal) loginModal.classList.remove('hidden');
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
         }
     }
 
@@ -132,146 +182,53 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
+        logoutBtn.addEventListener('click', async () => {
+            await fetch('/api/logout', { method: 'POST' }).catch(() => {});
             localStorage.removeItem('shibaurafes_user');
             checkLoginState();
         });
-    }
-
-    function generateDataHash(data) {
-        return JSON.stringify(data.map(item => ({
-            id: item.rowIndex,
-            p1: item['準備_1次チェック'],
-            p2: item['準備_2次チェック'],
-            p3: item['準備_3次チェック'],
-            c1: item['片付け_1次チェック'],
-            c2: item['片付け_2次チェック'],
-            c3: item['片付け_3次チェック'],
-            assignee: item['担当者']
-        })));
     }
 
     async function fetchData() {
         if (!currentUser) return;
         try {
             const res = await fetch('/api/classrooms');
+            if (!res.ok) return;
             const newData = await res.json();
-
-            classroomData = newData.map(newItem => {
-                const oldItem = classroomData.find(old => old.rowIndex === newItem.rowIndex);
-                if (oldItem && oldItem._currentStepIndex !== undefined) {
-                    newItem._currentStepIndex = oldItem._currentStepIndex;
-                }
-                return newItem;
-            });
-
-            lastDataHash = generateDataHash(newData);
-            renderFilteredCards();
+            updateClassroomData(newData);
         } catch (err) {
             console.error('データ取得失敗:', err);
         }
     }
 
-    // ★ ポーリングによる自動静音チェック＆即座反映処理
-    async function checkSilentUpdate() {
-        if (!currentUser) return;
-        try {
-            const res = await fetch('/api/classrooms');
-            const newData = await res.json();
-            const newHash = generateDataHash(newData);
-
-            // データのハッシュが変わった（他の誰かが更新した）場合
-            if (lastDataHash && lastDataHash !== newHash) {
-
-                // モーダルが開いている場合
-                if (modal && !modal.classList.contains('hidden') && currentSelectedRoom) {
-                    const activeEl = document.activeElement;
-                    // 入力欄にフォーカス中（入力作業中）の場合は画面書き換えをスキップ（入力バッティング防止）
-                    const isEditing = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT');
-
-                    if (!isEditing) {
-                        classroomData = newData.map(newItem => {
-                            const oldItem = classroomData.find(old => old.rowIndex === newItem.rowIndex);
-                            if (oldItem && oldItem._currentStepIndex !== undefined) {
-                                newItem._currentStepIndex = oldItem._currentStepIndex;
-                            }
-                            return newItem;
-                        });
-
-                        const updatedRoom = classroomData.find(r => r.rowIndex === currentSelectedRoom.rowIndex);
-                        if (updatedRoom) {
-                            currentSelectedRoom = updatedRoom;
-                            
-                            updateModalCheckArea();
-                            updateAssigneeUI(updatedRoom['担当者']);
-                            
-                            setSafeText('td-deskA-orig', updatedRoom['机α（元の数）'] || '0');
-                            setSafeText('td-deskA-used', updatedRoom['机α（使用数）'] || '0');
-                            setSafeText('td-deskA-move', updatedRoom['机α（移動数）'] || '0');
-                            setSafeText('td-deskB-orig', updatedRoom['机β（元の数）'] || '0');
-                            setSafeText('td-deskB-used', updatedRoom['机β（使用数）'] || '0');
-                            setSafeText('td-deskB-move', updatedRoom['机β（移動数）'] || '0');
-                            setSafeText('td-chair-orig', updatedRoom['椅子（元の数）'] || '0');
-                            setSafeText('td-chair-used', updatedRoom['椅子（使用数）'] || '0');
-                            setSafeText('td-chair-move', updatedRoom['椅子（移動数）'] || '0');
-                        }
-
-                        renderFilteredCards();
-                        lastDataHash = newHash;
-                    }
-                } else {
-                    // モーダルを閉じている時は通知ボタンを出さずに自動でカード一覧を最新化
-                    classroomData = newData;
-                    renderFilteredCards();
-                    lastDataHash = newHash;
-                }
-            } else {
-                lastDataHash = newHash;
-            }
-        } catch (err) {
-            console.warn('バックグラウンドチェック失敗:', err);
-        }
-    }
-
-
-    // ★ 30秒ごとに自動的にバックグラウンド更新チェック（間隔は必要に応じて調整可能）
-    setInterval(checkSilentUpdate, 30000);
-
+    // 全教室の閲覧・検索（制限なし）
     function renderFilteredCards() {
-        if (isGroupUser()) {
-            const myRoom = currentUser.assignedRoom ? currentUser.assignedRoom.trim().toLowerCase() : '';
-            const filtered = classroomData.filter(item =>
-                item['教室名'] && item['教室名'].toLowerCase().trim() === myRoom
-            );
+        const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
+        if (keyword) {
+            const filtered = classroomData.filter(item => {
+                const roomName = (item['教室名'] || '').toLowerCase();
+                const floor = (item['階数'] || '').toLowerCase();
+                const group = (item['団体名'] || '').toLowerCase();
+                const assignee = (item['担当者'] || '').toLowerCase();
+                const anteroom = String(item['控え室'] || '').toLowerCase();
+
+                const stepIdx = getCardDefaultStepIndex(item);
+                const step = checkSteps[stepIdx];
+                const currentStatus = (item[step.key] || '未実施').toLowerCase();
+                const fullStatusText = `${step.name}: ${currentStatus}`.toLowerCase();
+
+                return roomName.includes(keyword) ||
+                    floor.includes(keyword) ||
+                    group.includes(keyword) ||
+                    assignee.includes(keyword) ||
+                    anteroom.includes(keyword) ||
+                    currentStatus.includes(keyword) ||
+                    step.name.toLowerCase().includes(keyword) ||
+                    fullStatusText.includes(keyword);
+            });
             renderCardsByFloor(filtered);
         } else {
-            const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
-            if (keyword) {
-                const filtered = classroomData.filter(item => {
-                    const roomName = (item['教室名'] || '').toLowerCase();
-                    const floor = (item['階数'] || '').toLowerCase();
-                    const group = (item['団体名'] || '').toLowerCase();
-                    const assignee = (item['担当者'] || '').toLowerCase();
-                    const anteroom = String(item['控え室'] || '').toLowerCase();
-
-                    const stepIdx = getCardDefaultStepIndex(item);
-                    const step = checkSteps[stepIdx];
-                    const currentStatus = (item[step.key] || '未実施').toLowerCase();
-                    const fullStatusText = `${step.name}: ${currentStatus}`.toLowerCase();
-
-                    return roomName.includes(keyword) ||
-                        floor.includes(keyword) ||
-                        group.includes(keyword) ||
-                        assignee.includes(keyword) ||
-                        anteroom.includes(keyword) ||
-                        currentStatus.includes(keyword) ||
-                        step.name.toLowerCase().includes(keyword) ||
-                        fullStatusText.includes(keyword);
-                });
-                renderCardsByFloor(filtered);
-            } else {
-                renderCardsByFloor(classroomData);
-            }
+            renderCardsByFloor(classroomData);
         }
     }
 
@@ -343,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 let assigneeHtml = '';
                 if (assignee) {
                     assigneeHtml = `<span class="assignee-badge">${assignee}</span>`;
-                } else if (!isGroupUser() && !isGuestUser()) {
+                } else if (isCommitteeUser()) {
                     assigneeHtml = `<button class="claim-card-btn">＋担当する</button>`;
                 }
 
@@ -396,23 +353,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (claimBtn) {
                     claimBtn.addEventListener('click', async (e) => {
                         e.stopPropagation();
-                        if (!currentUser || isGroupUser() || isGuestUser()) return;
+                        if (!isCommitteeUser()) return;
                         const stepIdx = getCardDefaultStepIndex(item);
                         const step = checkSteps[stepIdx];
 
-                        await fetch('/api/update', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                rowIndex: item.rowIndex,
-                                roomName: item['教室名'],
-                                columnName: step.key,
-                                value: item[step.key] || '未実施',
-                                action: 'claim',
-                                userName: currentUser.username
-                            })
-                        });
-                        await fetchData();
+                        try {
+                            claimBtn.disabled = true;
+                            const res = await fetch('/api/update', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    rowIndex: item.rowIndex,
+                                    roomName: item['教室名'],
+                                    columnName: step.updateKey || step.key,
+                                    value: item[step.key] || '未実施',
+                                    action: 'claim'
+                                })
+                            });
+                            if (!res.ok) {
+                                const err = await res.json();
+                                alert(`担当登録に失敗しました: ${err.error}`);
+                            }
+                        } catch (err) {
+                            alert('通信エラーが発生しました');
+                        } finally {
+                            claimBtn.disabled = false;
+                        }
                     });
                 }
 
@@ -559,26 +525,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const qtyEditBoxes = document.querySelectorAll('.qty-edit-box');
 
-        if (isGroupUser() || isGuestUser()) {
+        // 「委員会」以外の役割では編集操作領域を完全に隠す
+        if (!isCommitteeUser()) {
             if (quickStatusActions) quickStatusActions.classList.add('hidden');
             if (modalClaimBtn) modalClaimBtn.classList.add('hidden');
             if (modalUnclaimBtn) modalUnclaimBtn.classList.add('hidden');
-
             qtyEditBoxes.forEach(box => box.classList.add('hidden'));
 
-            if (isGroupUser()) {
-                if (adminDivider) adminDivider.classList.add('hidden');
-                if (adminFeatureAccordion) adminFeatureAccordion.classList.add('hidden');
-            } else if (isGuestUser()) {
-                if (adminDivider) adminDivider.classList.remove('hidden');
-                if (adminFeatureAccordion) adminFeatureAccordion.classList.remove('hidden');
-                await fetchLogs(item['教室名']);
-            }
+            if (adminDivider) adminDivider.classList.remove('hidden');
+            if (adminFeatureAccordion) adminFeatureAccordion.classList.remove('hidden');
+            await fetchLogs(item['教室名']);
         } else {
             if (quickStatusActions) quickStatusActions.classList.remove('hidden');
             if (modalClaimBtn) modalClaimBtn.classList.remove('hidden');
             if (modalUnclaimBtn) modalUnclaimBtn.classList.remove('hidden');
-
             if (adminDivider) adminDivider.classList.remove('hidden');
             if (adminFeatureAccordion) adminFeatureAccordion.classList.remove('hidden');
             qtyEditBoxes.forEach(box => box.classList.remove('hidden'));
@@ -612,7 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateAssigneeUI(assigneeStr);
 
-        if (!isGroupUser() && !isGuestUser()) {
+        if (isCommitteeUser()) {
             const isMeAssigned = assignees.includes(activeUser);
 
             if (isMeAssigned) {
@@ -652,7 +612,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (quickStatusActions) {
         quickStatusActions.querySelectorAll('.btn-action').forEach(btn => {
             btn.addEventListener('click', async (e) => {
-                if (!currentSelectedRoom || !currentUser || isGroupUser() || isGuestUser()) return;
+                if (!currentSelectedRoom || !isCommitteeUser()) return;
 
                 const targetVal = e.target.getAttribute('data-val');
                 const step = checkSteps[currentStepIndex];
@@ -672,8 +632,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 currentSelectedRoom._currentStepIndex = currentStepIndex;
-                currentSelectedRoom[step.key] = targetVal;
-                updateModalCheckArea();
 
                 try {
                     const res = await fetch('/api/update', {
@@ -682,29 +640,21 @@ document.addEventListener('DOMContentLoaded', () => {
                         body: JSON.stringify({
                             rowIndex: targetRoomIndex,
                             roomName: targetRoomName,
-                            columnName: step.key,
-                            value: targetVal,
-                            userName: currentUser.username
+                            columnName: step.updateKey || step.key,
+                            value: targetVal
                         })
                     });
 
-                    const result = await res.json();
-                    if (result.success) {
+                    if (res.ok) {
                         if (targetVal === '完了' && currentStepIndex < checkSteps.length - 1) {
                             currentStepIndex++;
                         }
-                        await fetchData();
-                        if (currentSelectedRoom && currentSelectedRoom.rowIndex === targetRoomIndex) {
-                            const updatedRoom = classroomData.find(room => room.rowIndex === targetRoomIndex);
-                            if (updatedRoom) {
-                                currentSelectedRoom = updatedRoom;
-                                currentSelectedRoom._currentStepIndex = currentStepIndex;
-                            }
-                            updateModalCheckArea();
-                        }
+                    } else {
+                        const err = await res.json();
+                        alert(`ステータス更新に失敗しました: ${err.error}`);
                     }
                 } catch (err) {
-                    console.warn('ステータス更新中の通信中断またはエラー:', err);
+                    alert('通信エラーが発生しました');
                 }
             });
         });
@@ -712,33 +662,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (modalClaimBtn) {
         modalClaimBtn.addEventListener('click', async () => {
-            if (!currentSelectedRoom || !currentUser || isGroupUser() || isGuestUser()) return;
+            if (!currentSelectedRoom || !isCommitteeUser()) return;
             const step = checkSteps[currentStepIndex];
 
             try {
                 modalClaimBtn.disabled = true;
 
-                await fetch('/api/update', {
+                const res = await fetch('/api/update', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         rowIndex: currentSelectedRoom.rowIndex,
                         roomName: currentSelectedRoom['教室名'],
-                        columnName: step.key,
+                        columnName: step.updateKey || step.key,
                         value: currentSelectedRoom[step.key] || '未実施',
-                        action: 'claim',
-                        userName: currentUser.username
+                        action: 'claim'
                     })
                 });
-
-                await fetchData();
-                const updatedRoom = classroomData.find(r => r.rowIndex === currentSelectedRoom.rowIndex);
-                if (updatedRoom) {
-                    currentSelectedRoom = updatedRoom;
-                    updateModalCheckArea();
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert(`担当登録に失敗しました: ${err.error}`);
                 }
             } catch (err) {
-                console.warn('担当登録エラー:', err);
+                alert('通信エラーが発生しました');
             } finally {
                 if (modalClaimBtn) modalClaimBtn.disabled = false;
             }
@@ -747,33 +693,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (modalUnclaimBtn) {
         modalUnclaimBtn.addEventListener('click', async () => {
-            if (!currentSelectedRoom || !currentUser || isGroupUser() || isGuestUser()) return;
+            if (!currentSelectedRoom || !isCommitteeUser()) return;
             const step = checkSteps[currentStepIndex];
 
             try {
                 modalUnclaimBtn.disabled = true;
 
-                await fetch('/api/update', {
+                const res = await fetch('/api/update', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         rowIndex: currentSelectedRoom.rowIndex,
                         roomName: currentSelectedRoom['教室名'],
-                        columnName: step.key,
+                        columnName: step.updateKey || step.key,
                         value: currentSelectedRoom[step.key] || '未実施',
-                        action: 'unclaim',
-                        userName: currentUser.username
+                        action: 'unclaim'
                     })
                 });
-
-                await fetchData();
-                const updatedRoom = classroomData.find(r => r.rowIndex === currentSelectedRoom.rowIndex);
-                if (updatedRoom) {
-                    currentSelectedRoom = updatedRoom;
-                    updateModalCheckArea();
+                if (!res.ok) {
+                    const err = await res.json();
+                    alert(`担当解除に失敗しました: ${err.error}`);
                 }
             } catch (err) {
-                console.warn('担当解除エラー:', err);
+                alert('通信エラーが発生しました');
             } finally {
                 if (modalUnclaimBtn) modalUnclaimBtn.disabled = false;
             }
@@ -781,7 +723,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchLogs(roomName) {
-        if (isGroupUser() || !logList) return;
+        if (!logList) return;
         logList.innerHTML = '<li class="empty-log">読み込み中...</li>';
         try {
             const res = await fetch(`/api/logs/${encodeURIComponent(roomName)}`);
@@ -815,7 +757,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (saveQtyBtn) {
         saveQtyBtn.addEventListener('click', async () => {
-            if (!currentSelectedRoom || !currentUser || isGroupUser() || isGuestUser()) return;
+            if (!currentSelectedRoom || !isCommitteeUser()) return;
 
             const selectedKey = editItemKey.value;
             const oldValue = parseInt(editOldVal.value || 0, 10);
@@ -842,9 +784,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({
                         rowIndex: currentSelectedRoom.rowIndex,
                         roomName: currentSelectedRoom['教室名'],
-                        userName: currentUser.username,
                         itemKey: selectedKey,
-                        oldValue: String(oldValue),
                         newValue: String(newValue),
                         note: note
                     })
@@ -854,17 +794,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.success) {
                     alert(`成功: ${selectedKey} を ${oldValue} ➔ ${newValue} に更新しました！`);
                     resetModalForms();
-                    await fetchData();
-                    const updatedRoom = classroomData.find(r => r.rowIndex === currentSelectedRoom.rowIndex);
-                    if (updatedRoom) {
-                        currentSelectedRoom = updatedRoom;
-                        openModal(updatedRoom);
-                    }
                 } else {
-                    alert('更新失敗: ' + result.error);
+                    alert('更新失敗: ' + (result.error || '不明なエラー'));
                 }
             } catch (err) {
-                console.error(err);
                 alert('数量更新中にエラーが発生しました');
             } finally {
                 if (saveQtyBtn) {
@@ -877,7 +810,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (saveDestBtn) {
         saveDestBtn.addEventListener('click', async () => {
-            if (!currentSelectedRoom || !currentUser || isGroupUser() || isGuestUser()) return;
+            if (!currentSelectedRoom || !isCommitteeUser()) return;
 
             const targetItem = document.getElementById('edit-dest-item-key').value;
             const newDestName = document.getElementById('edit-new-dest-name').value.trim();
@@ -938,9 +871,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({
                         rowIndex: currentSelectedRoom.rowIndex,
                         roomName: currentSelectedRoom['教室名'],
-                        userName: currentUser.username,
                         itemKey: destColKey,
-                        oldValue: currentDestStr || '-',
                         newValue: finalDestValue,
                         note: detailLogNote
                     })
@@ -950,14 +881,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.success) {
                     alert(`成功: ${targetItem} の移動先を「${finalDestValue}」へ保存しました！`);
                     resetModalForms();
-                    await fetchData();
-                    const updatedRoom = classroomData.find(r => r.rowIndex === currentSelectedRoom.rowIndex);
-                    if (updatedRoom) {
-                        currentSelectedRoom = updatedRoom;
-                        openModal(updatedRoom);
-                    }
                 } else {
-                    alert('更新失敗: ' + result.error);
+                    alert('更新失敗: ' + (result.error || '不明なエラー'));
                 }
             } catch (err) {
                 alert('通信エラーが発生しました');
