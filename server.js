@@ -275,18 +275,6 @@ function broadcastSSERollback(rollbackPayload) {
     });
 }
 
-function broadcastSSEError(message) {
-    sseClients = sseClients.filter(client => {
-        try {
-            const payload = `event: update_failed\ndata: ${JSON.stringify({ error: message })}\n\n`;
-            client.res.write(payload);
-            return true;
-        } catch (err) {
-            return false;
-        }
-    });
-}
-
 setInterval(() => {
     sseClients = sseClients.filter(client => {
         try {
@@ -641,9 +629,8 @@ app.post('/api/update', requireCommittee, async (req, res) => {
                 return res.status(400).json({ error: `進捗ステータス「${value}」は無効です。` });
             }
 
-            const displayColName = targetColName.replace('_Web', '_表示用');
             const targetColIndex = headers.indexOf(targetColName);
-            const displayColIndex = headers.indexOf(displayColName);
+            const displayColName = targetColName.replace('_Web', '_表示用');
 
             if (targetColIndex === -1) {
                 return res.status(400).json({ error: `指定された列「${targetColName}」がシート内に存在しません` });
@@ -652,24 +639,17 @@ app.post('/api/update', requireCommittee, async (req, res) => {
             const oldValueRaw = targetRoom[columnName] || targetRoom[targetColName] || '未実施';
             const valueWithTimestamp = `${value} ${timestamp}`;
 
-            // スプレッドシート保存バッチ: Web用と表示用の両方を同時更新
+            // ★ スプレッドシート保存: 「_Web」列のみ書き込む
             valueRanges.push({
                 range: `'管理データ'!${colIndexToLetter(targetColIndex)}${targetRowIndex}`,
                 values: [[valueWithTimestamp]]
             });
 
-            if (displayColIndex !== -1) {
-                valueRanges.push({
-                    range: `'管理データ'!${colIndexToLetter(displayColIndex)}${targetRowIndex}`,
-                    values: [[value]]
-                });
-            }
-
             logEntries.push([
                 crypto.randomUUID(), timestamp, sessionUsername, roomName, columnName, oldValueRaw, value, '進捗ステータス変更'
             ]);
 
-            // メモリキャッシュを仮更新
+            // メモリキャッシュ更新
             targetRoom[targetColName] = valueWithTimestamp;
             targetRoom[displayColName] = value;
             targetRoom[columnName] = value;
@@ -678,13 +658,13 @@ app.post('/api/update', requireCommittee, async (req, res) => {
         // 1. 全端末へ SSE で「仮更新」を即時配信 ⚡️
         broadcastSSE('data_updated', cachedClassroomData);
 
-        // 2. メトリクス集計 & リクエスト送信者へ即時応答
+        // 2. レスポンス返却
         const totalApiMs = Date.now() - apiStartTime;
         metricsAggregation.updateSuccessCount++;
         metricsAggregation.totalUpdateDurationMs += totalApiMs;
         res.json({ success: true, pending: true });
 
-        // 3. バックグラウンドで Google Sheets へ保存開始
+        // 3. バックグラウンドで Google Sheets へ保存
         scheduleSheetWrite(async () => {
             try {
                 if (valueRanges.length > 0) {
@@ -737,6 +717,7 @@ app.post('/api/discord-apply', async (req, res) => {
     try {
         await ensureInitialLoad();
 
+        // API Secret の確認 (環境変数設定がない場合はスキップ)
         const botSecret = req.headers['x-bot-secret'];
         if (process.env.BOT_API_SECRET && botSecret !== process.env.BOT_API_SECRET) {
             return res.status(403).json({ error: '認証エラー: 無効なBot API Secretキーです' });
@@ -754,29 +735,25 @@ app.post('/api/discord-apply', async (req, res) => {
         }
 
         const columnMap = {
-            '準備_1次チェック': '準備1次_Discord',
-            '準備_2次チェック': '準備2次_Discord',
-            '準備_3次チェック': '準備3次_Discord',
-            '片付け_1次チェック': '片付け1次_Discord',
-            '片付け_2次チェック': '片付け2次_Discord',
-            '片付け_3次チェック': '片付け3次_Discord',
+            '準備_1次チェック': '準備1次_Web',
+            '準備_2次チェック': '準備2次_Web',
+            '準備_3次チェック': '準備3次_Web',
+            '片付け_1次チェック': '片付け1次_Web',
+            '片付け_2次チェック': '片付け2次_Web',
+            '片付け_3次チェック': '片付け3次_Web',
         };
 
-        const targetDiscordCol = columnMap[applyType];
-        if (!targetDiscordCol) {
+        const targetWebCol = columnMap[applyType];
+        if (!targetWebCol) {
             return res.status(400).json({ error: `未対応の申請種別です: ${applyType}` });
         }
 
-        const targetWebCol = targetDiscordCol.replace('_Discord', '_Web');
-        const targetDisplayCol = targetDiscordCol.replace('_Discord', '_表示用');
-
+        const targetDisplayCol = targetWebCol.replace('_Web', '_表示用');
         const headers = cachedHeaders;
-        const discordColIdx = headers.indexOf(targetDiscordCol);
         const webColIdx = headers.indexOf(targetWebCol);
-        const displayColIdx = headers.indexOf(targetDisplayCol);
 
-        if (discordColIdx === -1) {
-            return res.status(400).json({ error: `シート内に「${targetDiscordCol}」列が存在しません` });
+        if (webColIdx === -1) {
+            return res.status(400).json({ error: `シート内に「${targetWebCol}」列が存在しません` });
         }
 
         const timestamp = getFormattedTimestamp();
@@ -788,8 +765,7 @@ app.post('/api/discord-apply', async (req, res) => {
         const newRev = previousRev + 1;
         targetRoom._rev = newRev;
 
-        // メモリキャッシュを仮更新
-        targetRoom[targetDiscordCol] = valueWithTime;
+        // メモリキャッシュを仮更新（Webアプリ画面は即時「依頼中」に切り替わる）
         targetRoom[targetWebCol] = valueWithTime;
         targetRoom[targetDisplayCol] = '依頼中';
 
@@ -805,25 +781,13 @@ app.post('/api/discord-apply', async (req, res) => {
             timestamp: timestamp
         });
 
-        // 3. スプレッドシート保存バッチ
+        // 3. ★ スプレッドシート保存: 「_Web」列のみ書き込む
         const valueRanges = [
             {
-                range: `'管理データ'!${colIndexToLetter(discordColIdx)}${targetRowIndex}`,
+                range: `'管理データ'!${colIndexToLetter(webColIdx)}${targetRowIndex}`,
                 values: [[valueWithTime]]
             }
         ];
-        if (webColIdx !== -1) {
-            valueRanges.push({
-                range: `'管理データ'!${colIndexToLetter(webColIdx)}${targetRowIndex}`,
-                values: [[valueWithTime]]
-            });
-        }
-        if (displayColIdx !== -1) {
-            valueRanges.push({
-                range: `'管理データ'!${colIndexToLetter(displayColIdx)}${targetRowIndex}`,
-                values: [['依頼中']]
-            });
-        }
 
         scheduleSheetWrite(async () => {
             try {
@@ -842,8 +806,8 @@ app.post('/api/discord-apply', async (req, res) => {
                     timestamp,
                     `Discord (${nickname || groupName})`,
                     targetRoom['教室名'],
-                    targetDiscordCol,
-                    previousStateSnapshot[targetDiscordCol] || '未実施',
+                    targetWebCol,
+                    previousStateSnapshot[targetWebCol] || '未実施',
                     '依頼中',
                     'Discordスラッシュコマンド申請'
                 ];
@@ -858,7 +822,7 @@ app.post('/api/discord-apply', async (req, res) => {
                     broadcastSSERollback({
                         rowIndex: targetRowIndex,
                         roomName: targetRoom['教室名'],
-                        columnName: targetDiscordCol,
+                        columnName: targetWebCol,
                         revertedRoom: currentRoomInCache,
                         message: `Discordからの「${targetRoom['教室名']}」申請保存に失敗したため取り消されました。`
                     });
