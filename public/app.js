@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentUser = null;
     let currentStepIndex = 0;
     let eventSource = null;
-    let isUpdatingStatus = false; // ボタン連続押し・二重送信制御フラグ
+    let isUpdatingStatus = false;
 
     const checkSteps = [
         { key: '準備1次_表示用', updateKey: '準備1次_Web', name: '準備 1次' },
@@ -149,6 +149,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateClassroomData(data);
             } catch (err) {
                 console.error('SSE update parse error:', err);
+            }
+        });
+
+        eventSource.addEventListener('update_failed', (e) => {
+            try {
+                const data = JSON.parse(e.data);
+                alert(`【通知】${data.error || '保存に失敗しました'}`);
+            } catch (err) {
+                console.error('SSE failure parse error:', err);
             }
         });
 
@@ -724,14 +733,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 楽観的UI更新（Optimistic UI）付きワンタップボタン処理 ---
+    // --- 高速非同期レスポンス対応ワンタップボタン ---
     if (quickStatusActions) {
         quickStatusActions.querySelectorAll('.btn-action').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 if (!currentSelectedRoom || !isCommitteeUser() || isUpdatingStatus) return;
 
                 const targetVal = e.target.getAttribute('data-val');
-                // リクエスト送信時の固定ステップ情報を保持 (操作中ステップ切り替えバグ防止)
                 const fixedStepIndex = currentStepIndex;
                 const step = checkSteps[fixedStepIndex];
                 const targetRoomIndex = currentSelectedRoom.rowIndex;
@@ -749,19 +757,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                // 前の状態を保持 (エラー発生時のフォールバック用)
-                const previousStatusValue = currentSelectedRoom[step.key] || '未実施';
-
-                // --- 1. 楽観的UI更新 (即時表示) ---
-                currentSelectedRoom[step.key] = targetVal;
-                updateModalCheckArea();
-                renderFilteredCards();
-
-                // UIの操作をロック
-                isUpdatingStatus = true;
-                quickStatusActions.querySelectorAll('.btn-action').forEach(b => b.disabled = true);
-
                 try {
+                    // APIへ送信 (サーバー側でメモリ更新＆SSE即時配信が行われるためフロント楽観更新は不要)
                     const res = await fetch('/api/update', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -774,25 +771,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
 
                     const result = await res.json();
-
                     if (!res.ok) {
-                        // --- 2. エラー時は元の状態へロールバック ---
-                        currentSelectedRoom[step.key] = previousStatusValue;
-                        updateModalCheckArea();
-                        renderFilteredCards();
-                        alert(`ステータス更新に失敗しました: ${result.error || '不明なエラー'}`);
+                        alert(`ステータス更新の受付に失敗しました: ${result.error || '不明なエラー'}`);
                     }
                 } catch (err) {
-                    // ネットワークエラー時もロールバック
-                    currentSelectedRoom[step.key] = previousStatusValue;
-                    updateModalCheckArea();
-                    renderFilteredCards();
                     alert('通信エラーが発生しました。接続を確認してください。');
-                } finally {
-                    isUpdatingStatus = false;
-                    if (quickStatusActions) {
-                        quickStatusActions.querySelectorAll('.btn-action').forEach(b => b.disabled = false);
-                    }
                 }
             });
         });
@@ -920,7 +903,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 saveQtyBtn.disabled = true;
-                saveQtyBtn.textContent = '更新中...';
+                saveQtyBtn.textContent = '送信中...';
 
                 const res = await fetch('/api/update-quantity', {
                     method: 'POST',
@@ -936,9 +919,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const result = await res.json();
                 if (result.success) {
-                    alert(`成功: ${selectedKey} を ${oldValue} ➔ ${newValue} に更新しました！`);
                     resetModalForms();
-                    await fetchLogs(currentSelectedRoom['教室名']);
+                    setTimeout(() => fetchLogs(currentSelectedRoom['教室名']), 300);
                 } else {
                     alert('更新失敗: ' + (result.error || '不明なエラー'));
                 }
@@ -1006,7 +988,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 saveDestBtn.disabled = true;
-                saveDestBtn.textContent = '更新中...';
+                saveDestBtn.textContent = '送信中...';
 
                 const detailLogNote = `[${targetItem}の移動先変更: ${updateType}] 新移動先:${newDestName}(${inputQty}脚) ${note ? 'メモ:' + note : ''}`;
 
@@ -1024,9 +1006,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const result = await res.json();
                 if (result.success) {
-                    alert(`成功: ${targetItem} の移動先を「${finalDestValue}」へ保存しました！`);
                     resetModalForms();
-                    await fetchLogs(currentSelectedRoom['教室名']);
+                    setTimeout(() => fetchLogs(currentSelectedRoom['教室名']), 300);
                 } else {
                     alert('更新失敗: ' + (result.error || '不明なエラー'));
                 }

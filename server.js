@@ -137,8 +137,9 @@ let sseClients = [];
 let isInitialLoaded = false;
 let initPromise = null;
 
-let writeLockPromise = Promise.resolve();
-let isWriting = false;
+// バックグラウンド書き込みキュー
+let sheetWriteQueue = Promise.resolve();
+let pendingWriteCount = 0;
 
 // --- バックグラウンド操作ログ保存キュー (永続化付き) ---
 const LOG_PERSIST_FILE = path.join(__dirname, 'data', 'pending_logs.json');
@@ -148,7 +149,6 @@ let pendingLogQueue = [];
 let isProcessingLogQueue = false;
 const processedLogIds = new Set();
 
-// 永続化ストレージ初期化
 if (!fs.existsSync(path.join(__dirname, 'data'))) {
     try { fs.mkdirSync(path.join(__dirname, 'data')); } catch (e) {}
 }
@@ -199,9 +199,7 @@ function enqueueLog(logEntry) {
         attempts: 0
     };
     
-    // キャッシュへ即時反映 (UI表示用)
     addLogToCache(logEntry);
-
     pendingLogQueue.push(logObj);
     savePersistedLogs();
 
@@ -230,8 +228,7 @@ async function processLogQueue() {
         const startTime = Date.now();
 
         try {
-            // スプレッドシートへ書き込み (A:G の7列構造)
-            const sheetRow = item.data.slice(1); // logIdを除いた timestamp〜note
+            const sheetRow = item.data.slice(1);
             await executeWithRetry(() => sheetsCall('append', '操作ログ', () =>
                 rawSheets.spreadsheets.values.append({
                     spreadsheetId: process.env.SPREADSHEET_ID,
@@ -262,7 +259,6 @@ async function processLogQueue() {
                 pendingLogQueue.shift();
                 savePersistedLogs();
             } else {
-                // 退避して再試行まで待機
                 await new Promise(r => setTimeout(r, Math.pow(2, item.attempts) * 1000));
                 break;
             }
@@ -287,6 +283,18 @@ function broadcastSSE(eventType, rawData) {
     });
 }
 
+function broadcastSSEError(message) {
+    sseClients = sseClients.filter(client => {
+        try {
+            const payload = `event: update_failed\ndata: ${JSON.stringify({ error: message })}\n\n`;
+            client.res.write(payload);
+            return true;
+        } catch (err) {
+            return false;
+        }
+    });
+}
+
 setInterval(() => {
     sseClients = sseClients.filter(client => {
         try {
@@ -300,8 +308,8 @@ setInterval(() => {
 
 // --- スプレッドシート同期 ---
 async function fetchAndSyncFromSpreadsheet() {
-    if (isWriting) {
-        // 書き込み処理中の場合は競合を避けるため今回の定期読み込みをスキップ
+    if (pendingWriteCount > 0) {
+        // バックグラウンド書き込み滞留中は定期同期で上書きしない
         return;
     }
 
@@ -320,7 +328,9 @@ async function fetchAndSyncFromSpreadsheet() {
             cachedHeaders = headers;
 
             const newData = rows.slice(1).map((row, index) => {
-                const obj = { rowIndex: index + 2 };
+                const targetRowIndex = index + 2;
+                const existing = cachedClassroomData.find(r => r.rowIndex === targetRowIndex);
+                const obj = { rowIndex: targetRowIndex, _rev: existing ? (existing._rev || 1) : 1 };
                 headers.forEach((header, colIndex) => {
                     obj[header] = row[colIndex] || '';
                 });
@@ -389,7 +399,7 @@ ensureInitialLoad().catch(err => console.error('起動時初期データ取得�
 
 const POLL_INTERVAL = Number(process.env.POLL_INTERVAL_MS) || 30000;
 setInterval(async () => {
-    if (!isWriting) {
+    if (pendingWriteCount === 0) {
         await fetchAndSyncFromSpreadsheet().catch(err => console.error('定期同期エラー:', err.message));
     }
 }, POLL_INTERVAL);
@@ -423,6 +433,20 @@ function requireCommittee(req, res, next) {
         return res.status(403).json({ error: 'アクセス権限がありません（委員会権限が必要です）。' });
     }
     next();
+}
+
+// バックグラウンドGoogle Sheets書き込みタスクのスケジューリング
+function scheduleSheetWrite(writeFn) {
+    pendingWriteCount++;
+    sheetWriteQueue = sheetWriteQueue.then(async () => {
+        try {
+            await writeFn();
+        } catch (e) {
+            console.error('[BACKGROUND-WRITE-ERROR]', e.message);
+        } finally {
+            pendingWriteCount--;
+        }
+    });
 }
 
 // --- エンドポイント ---
@@ -520,281 +544,290 @@ app.get('/api/classrooms', requireAuth, async (req, res) => {
     }
 });
 
-// --- 超高速化された進捗更新 API ---
+// --- 楽観的更新対応・超高速進捗更新 API ---
 app.post('/api/update', requireCommittee, async (req, res) => {
     const apiStartTime = Date.now();
 
-    writeLockPromise = writeLockPromise.then(async () => {
-        const queueWaitMs = Date.now() - apiStartTime;
-        isWriting = true;
+    try {
+        await ensureInitialLoad();
 
-        try {
-            await ensureInitialLoad();
+        const { rowIndex, roomName, columnName, value, action } = req.body;
+        const sessionUsername = req.session.user.username;
+        const targetRowIndex = Number(rowIndex);
 
-            const { rowIndex, roomName, columnName, value, action } = req.body;
-            const sessionUsername = req.session.user.username;
-            const targetRowIndex = Number(rowIndex);
+        if (!targetRowIndex || isNaN(targetRowIndex) || targetRowIndex < 2) {
+            return res.status(400).json({ error: '有効な行番号が指定されていません' });
+        }
+        if (!roomName || typeof roomName !== 'string' || roomName.length > 100) {
+            return res.status(400).json({ error: '不正な教室名です' });
+        }
 
-            if (!targetRowIndex || isNaN(targetRowIndex) || targetRowIndex < 2) {
-                isWriting = false;
-                return res.status(400).json({ error: '有効な行番号が指定されていません' });
-            }
-            if (!roomName || typeof roomName !== 'string' || roomName.length > 100) {
-                isWriting = false;
-                return res.status(400).json({ error: '不正な教室名です' });
-            }
+        const targetRoom = cachedClassroomData.find(r => r.rowIndex === targetRowIndex);
+        if (!targetRoom || targetRoom['教室名'] !== roomName) {
+            return res.status(400).json({ error: '対象の教室データが見つかりません' });
+        }
 
-            const targetRoom = cachedClassroomData.find(r => r.rowIndex === targetRowIndex);
-            if (!targetRoom || targetRoom['教室名'] !== roomName) {
-                isWriting = false;
-                return res.status(400).json({ error: '対象の教室データが見つかりません' });
-            }
+        const headers = cachedHeaders;
+        const assigneeColIdx = headers.indexOf('担当者');
+        if (assigneeColIdx === -1) {
+            return res.status(400).json({ error: '「担当者」列が存在しません' });
+        }
+        const assigneeColLetter = colIndexToLetter(assigneeColIdx);
 
-            const headers = cachedHeaders;
-            const assigneeColIdx = headers.indexOf('担当者');
-            if (assigneeColIdx === -1) {
-                isWriting = false;
-                return res.status(400).json({ error: '「担当者」列が存在しません' });
-            }
-            const assigneeColLetter = colIndexToLetter(assigneeColIdx);
+        const valueRanges = [];
+        const logEntries = [];
+        const timestamp = getFormattedTimestamp();
 
-            const valueRanges = [];
-            const logEntries = [];
-            const pendingCacheUpdates = [];
-            const timestamp = getFormattedTimestamp();
+        // ロールバック用バックアップ作成（スナップショット）
+        const previousStateSnapshot = { ...targetRoom };
+        const previousRev = targetRoom._rev || 1;
+        const newRev = previousRev + 1;
+        targetRoom._rev = newRev;
 
-            if (action === 'claim' || action === 'unclaim') {
-                if (action === 'claim') {
-                    cachedClassroomData.forEach(room => {
-                        if (room.rowIndex !== targetRowIndex && room['担当者']) {
-                            let assignees = room['担当者'].split(',').map(s => s.trim()).filter(Boolean);
-                            if (assignees.includes(sessionUsername)) {
-                                assignees = assignees.filter(name => name !== sessionUsername);
-                                const newAssigneeStr = assignees.join(', ');
-                                valueRanges.push({
-                                    range: `'管理データ'!${assigneeColLetter}${room.rowIndex}`,
-                                    values: [[newAssigneeStr]]
-                                });
-                                pendingCacheUpdates.push({ room, key: '担当者', val: newAssigneeStr });
-                            }
+        const affectedRoomsBackup = [];
+
+        if (action === 'claim' || action === 'unclaim') {
+            if (action === 'claim') {
+                cachedClassroomData.forEach(room => {
+                    if (room.rowIndex !== targetRowIndex && room['担当者']) {
+                        let assignees = room['担当者'].split(',').map(s => s.trim()).filter(Boolean);
+                        if (assignees.includes(sessionUsername)) {
+                            affectedRoomsBackup.push({ room, oldAssignee: room['担当者'] });
+                            assignees = assignees.filter(name => name !== sessionUsername);
+                            const newAssigneeStr = assignees.join(', ');
+                            valueRanges.push({
+                                range: `'管理データ'!${assigneeColLetter}${room.rowIndex}`,
+                                values: [[newAssigneeStr]]
+                            });
+                            room['担当者'] = newAssigneeStr;
                         }
-                    });
-
-                    let targetAssignees = (targetRoom['担当者'] || '').split(',').map(s => s.trim()).filter(Boolean);
-                    if (!targetAssignees.includes(sessionUsername)) {
-                        targetAssignees.push(sessionUsername);
                     }
-                    const newTargetAssigneeStr = targetAssignees.join(', ');
-                    valueRanges.push({
-                        range: `'管理データ'!${assigneeColLetter}${targetRowIndex}`,
-                        values: [[newTargetAssigneeStr]]
-                    });
+                });
 
-                    logEntries.push([
-                        crypto.randomUUID(), timestamp, sessionUsername, roomName, '担当者', targetRoom['担当者'] || '未割当', newTargetAssigneeStr, '担当登録'
-                    ]);
-                    pendingCacheUpdates.push({ room: targetRoom, key: '担当者', val: newTargetAssigneeStr });
-
-                } else if (action === 'unclaim') {
-                    let assignees = (targetRoom['担当者'] || '').split(',').map(s => s.trim()).filter(Boolean);
-                    const oldAssigneeStr = targetRoom['担当者'] || '';
-                    assignees = assignees.filter(name => name !== sessionUsername);
-                    const newAssigneeStr = assignees.join(', ');
-
-                    valueRanges.push({
-                        range: `'管理データ'!${assigneeColLetter}${targetRowIndex}`,
-                        values: [[newAssigneeStr]]
-                    });
-
-                    logEntries.push([
-                        crypto.randomUUID(), timestamp, sessionUsername, roomName, '担当者', oldAssigneeStr, newAssigneeStr, '担当解除'
-                    ]);
-                    pendingCacheUpdates.push({ room: targetRoom, key: '担当者', val: newAssigneeStr });
+                let targetAssignees = (targetRoom['担当者'] || '').split(',').map(s => s.trim()).filter(Boolean);
+                if (!targetAssignees.includes(sessionUsername)) {
+                    targetAssignees.push(sessionUsername);
                 }
-            } else {
-                if (!columnName || typeof columnName !== 'string') {
-                    isWriting = false;
-                    return res.status(400).json({ error: '更新対象の列名が指定されていません' });
-                }
-
-                let targetColName = columnName;
-                if (!targetColName.endsWith('_Web')) {
-                    const baseName = targetColName.replace('_表示用', '').replace('_チェック', '').replace('_', '');
-                    targetColName = `${baseName}_Web`;
-                }
-
-                if (!ALLOWED_PROGRESS_WEB_COLUMNS.includes(targetColName)) {
-                    isWriting = false;
-                    return res.status(400).json({ error: `列「${targetColName}」への書き込みは許可されていません` });
-                }
-
-                if (!value || typeof value !== 'string' || !ALLOWED_PROGRESS_STATUSES.includes(value)) {
-                    isWriting = false;
-                    return res.status(400).json({ error: `進捗ステータス「${value}」は無効です。` });
-                }
-
-                const targetColIndex = headers.indexOf(targetColName);
-                if (targetColIndex === -1) {
-                    isWriting = false;
-                    return res.status(400).json({ error: `指定された列「${targetColName}」がシート内に存在しません` });
-                }
-
-                const oldValueRaw = targetRoom[columnName] || targetRoom[targetColName] || '未実施';
-                const valueWithTimestamp = `${value} ${timestamp}`;
-                const colLetter = colIndexToLetter(targetColIndex);
-
+                const newTargetAssigneeStr = targetAssignees.join(', ');
                 valueRanges.push({
-                    range: `'管理データ'!${colLetter}${targetRowIndex}`,
-                    values: [[valueWithTimestamp]]
+                    range: `'管理データ'!${assigneeColLetter}${targetRowIndex}`,
+                    values: [[newTargetAssigneeStr]]
                 });
 
                 logEntries.push([
-                    crypto.randomUUID(), timestamp, sessionUsername, roomName, columnName, oldValueRaw, value, '進捗ステータス変更'
+                    crypto.randomUUID(), timestamp, sessionUsername, roomName, '担当者', targetRoom['担当者'] || '未割当', newTargetAssigneeStr, '担当登録'
                 ]);
+                targetRoom['担当者'] = newTargetAssigneeStr;
 
-                pendingCacheUpdates.push({ room: targetRoom, key: targetColName, val: valueWithTimestamp });
-                pendingCacheUpdates.push({ room: targetRoom, key: columnName, val: value });
+            } else if (action === 'unclaim') {
+                let assignees = (targetRoom['担当者'] || '').split(',').map(s => s.trim()).filter(Boolean);
+                const oldAssigneeStr = targetRoom['担当者'] || '';
+                assignees = assignees.filter(name => name !== sessionUsername);
+                const newAssigneeStr = assignees.join(', ');
+
+                valueRanges.push({
+                    range: `'管理データ'!${assigneeColLetter}${targetRowIndex}`,
+                    values: [[newAssigneeStr]]
+                });
+
+                logEntries.push([
+                    crypto.randomUUID(), timestamp, sessionUsername, roomName, '担当者', oldAssigneeStr, newAssigneeStr, '担当解除'
+                ]);
+                targetRoom['担当者'] = newAssigneeStr;
+            }
+        } else {
+            if (!columnName || typeof columnName !== 'string') {
+                return res.status(400).json({ error: '更新対象の列名が指定されていません' });
             }
 
-            // --- 1. Google Sheets 本体データ同期更新 ---
-            const dataSaveStart = Date.now();
-            if (valueRanges.length > 0) {
-                await executeWithRetry(() => sheetsCall('batchUpdate', '管理データ', () =>
-                    rawSheets.spreadsheets.values.batchUpdate({
-                        spreadsheetId: process.env.SPREADSHEET_ID,
-                        requestBody: {
-                            valueInputOption: 'USER_ENTERED',
-                            data: valueRanges
-                        }
-                    })
-                ));
+            let targetColName = columnName;
+            if (!targetColName.endsWith('_Web')) {
+                const baseName = targetColName.replace('_表示用', '').replace('_チェック', '').replace('_', '');
+                targetColName = `${baseName}_Web`;
             }
-            const dataSaveMs = Date.now() - dataSaveStart;
 
-            // キャッシュ即時反映
-            pendingCacheUpdates.forEach(update => {
-                update.room[update.key] = update.val;
+            if (!ALLOWED_PROGRESS_WEB_COLUMNS.includes(targetColName)) {
+                return res.status(400).json({ error: `列「${targetColName}」への書き込みは許可されていません` });
+            }
+
+            if (!value || typeof value !== 'string' || !ALLOWED_PROGRESS_STATUSES.includes(value)) {
+                return res.status(400).json({ error: `進捗ステータス「${value}」は無効です。` });
+            }
+
+            const targetColIndex = headers.indexOf(targetColName);
+            if (targetColIndex === -1) {
+                return res.status(400).json({ error: `指定された列「${targetColName}」がシート内に存在しません` });
+            }
+
+            const oldValueRaw = targetRoom[columnName] || targetRoom[targetColName] || '未実施';
+            const valueWithTimestamp = `${value} ${timestamp}`;
+            const colLetter = colIndexToLetter(targetColIndex);
+
+            valueRanges.push({
+                range: `'管理データ'!${colLetter}${targetRowIndex}`,
+                values: [[valueWithTimestamp]]
             });
 
-            // --- 2. SSE ブロードキャスト & 即時レスポンス ---
-            const sseStart = Date.now();
-            broadcastSSE('data_updated', cachedClassroomData);
-            const sseBroadcastMs = Date.now() - sseStart;
+            logEntries.push([
+                crypto.randomUUID(), timestamp, sessionUsername, roomName, columnName, oldValueRaw, value, '進捗ステータス変更'
+            ]);
 
-            const totalApiMs = Date.now() - apiStartTime;
-
-            // 集計・遅延警告
-            metricsAggregation.updateSuccessCount++;
-            metricsAggregation.totalUpdateDurationMs += totalApiMs;
-
-            if (totalApiMs > 1500) {
-                console.warn(`[PERF-SLOW-UPDATE] total=${totalApiMs}ms (queueWait=${queueWaitMs}ms, dataSave=${dataSaveMs}ms, sse=${sseBroadcastMs}ms)`);
-            }
-
-            res.json({ success: true, logSaved: true });
-
-            // --- 3. 操作ログ保存はバックグラウンドキューへ非同期分離 ---
-            setImmediate(() => {
-                logEntries.forEach(logEntry => enqueueLog(logEntry));
-            });
-
-        } catch (error) {
-            metricsAggregation.updateErrorCount++;
-            console.error('更新API処理エラー:', error.message);
-            res.status(500).json({ error: 'スプレッドシートへの保存に失敗しました' });
-        } finally {
-            isWriting = false;
+            targetRoom[targetColName] = valueWithTimestamp;
+            targetRoom[columnName] = value;
         }
-    });
+
+        // メモリキャッシュ即時反映 & 全端末へSSEブロードキャスト
+        broadcastSSE('data_updated', cachedClassroomData);
+
+        // 操作端末へ即時レスポンス（Google Sheets完了を待たない）
+        const totalApiMs = Date.now() - apiStartTime;
+        metricsAggregation.updateSuccessCount++;
+        metricsAggregation.totalUpdateDurationMs += totalApiMs;
+        res.json({ success: true, pending: true });
+
+        // バックグラウンドで Google Sheets に保存
+        scheduleSheetWrite(async () => {
+            const dataSaveStart = Date.now();
+            try {
+                if (valueRanges.length > 0) {
+                    await executeWithRetry(() => sheetsCall('batchUpdate', '管理データ', () =>
+                        rawSheets.spreadsheets.values.batchUpdate({
+                            spreadsheetId: process.env.SPREADSHEET_ID,
+                            requestBody: {
+                                valueInputOption: 'USER_ENTERED',
+                                data: valueRanges
+                            }
+                        })
+                    ));
+                }
+
+                // 保存成功時にログ処理をキューへ追加
+                logEntries.forEach(logEntry => enqueueLog(logEntry));
+
+            } catch (error) {
+                metricsAggregation.updateErrorCount++;
+                console.error(`[BACKGROUND-SAVE-FAILED] 教室: ${roomName}, エラー: ${error.message}`);
+
+                // ロールバック安全判定: 対象教室のリビジョンがこの更新のまま（＝後続の更新が起きていない）場合のみ書き戻す
+                const currentRoomInCache = cachedClassroomData.find(r => r.rowIndex === targetRowIndex);
+                if (currentRoomInCache && currentRoomInCache._rev === newRev) {
+                    Object.assign(currentRoomInCache, previousStateSnapshot);
+                    currentRoomInCache._rev = previousRev;
+
+                    affectedRoomsBackup.forEach(b => {
+                        b.room['担当者'] = b.oldAssignee;
+                    });
+
+                    // ロールバック後の状態を全端末に即時再配信
+                    broadcastSSE('data_updated', cachedClassroomData);
+                    broadcastSSEError(`「${roomName}」の更新保存に失敗したため、状態を戻しました。`);
+                } else {
+                    console.warn(`[ROLLBACK-SKIPPED] 後続の更新(rev:${currentRoomInCache ? currentRoomInCache._rev : 'N/A'})が存在するためロールバックをスキップしました`);
+                }
+            }
+        });
+
+    } catch (error) {
+        metricsAggregation.updateErrorCount++;
+        console.error('更新API初期エラー:', error.message);
+        res.status(500).json({ error: '更新処理の受付に失敗しました' });
+    }
 });
 
 // 数量更新 API
 app.post('/api/update-quantity', requireCommittee, async (req, res) => {
     const apiStartTime = Date.now();
 
-    writeLockPromise = writeLockPromise.then(async () => {
-        isWriting = true;
-        try {
-            await ensureInitialLoad();
+    try {
+        await ensureInitialLoad();
 
-            const { rowIndex, roomName, itemKey, newValue, note } = req.body;
-            const sessionUsername = req.session.user.username;
-            const targetRowIndex = Number(rowIndex);
+        const { rowIndex, roomName, itemKey, newValue, note } = req.body;
+        const sessionUsername = req.session.user.username;
+        const targetRowIndex = Number(rowIndex);
 
-            if (!targetRowIndex || isNaN(targetRowIndex) || targetRowIndex < 2) {
-                isWriting = false;
-                return res.status(400).json({ error: '有効な行番号が指定されていません' });
-            }
-            if (!roomName || typeof roomName !== 'string' || roomName.length > 100) {
-                isWriting = false;
-                return res.status(400).json({ error: '不正な教室名です' });
-            }
-            if (!ALLOWED_QUANTITY_COLUMNS.includes(itemKey)) {
-                isWriting = false;
-                return res.status(400).json({ error: `列「${itemKey}」の変更は許可されていません` });
-            }
-
-            const cleanValue = (newValue !== null && newValue !== undefined) ? String(newValue).trim() : '';
-            if (itemKey.includes('数') || itemKey.includes('一人用')) {
-                const parsedInt = parseInt(cleanValue, 10);
-                if (isNaN(parsedInt) || parsedInt < 0 || String(parsedInt) !== cleanValue) {
-                    isWriting = false;
-                    return res.status(400).json({ error: '数量は0以上の整数を入力してください' });
-                }
-            } else {
-                if (cleanValue.length > 300) {
-                    isWriting = false;
-                    return res.status(400).json({ error: '入力文字列が長すぎます（最大300文字）' });
-                }
-            }
-
-            const cleanNote = note ? String(note).trim().slice(0, 300) : '';
-
-            const targetRoom = cachedClassroomData.find(r => r.rowIndex === targetRowIndex);
-            if (!targetRoom || targetRoom['教室名'] !== roomName) {
-                isWriting = false;
-                return res.status(400).json({ error: '対象の教室が見つかりません' });
-            }
-
-            const headers = cachedHeaders;
-            const targetColIndex = headers.indexOf(itemKey);
-            if (targetColIndex === -1) {
-                isWriting = false;
-                return res.status(400).json({ error: `スプレッドシートに「${itemKey}」列が存在しません` });
-            }
-
-            const serverOldValue = String(targetRoom[itemKey] || '0');
-            const colLetter = colIndexToLetter(targetColIndex);
-            const timestamp = getFormattedTimestamp();
-
-            await executeWithRetry(() => sheetsCall('update', `管理データ!${colLetter}${targetRowIndex}`, () =>
-                rawSheets.spreadsheets.values.update({
-                    spreadsheetId: process.env.SPREADSHEET_ID,
-                    range: `'管理データ'!${colLetter}${targetRowIndex}`,
-                    valueInputOption: 'USER_ENTERED',
-                    requestBody: { values: [[cleanValue]] }
-                })
-            ));
-
-            targetRoom[itemKey] = cleanValue;
-
-            broadcastSSE('data_updated', cachedClassroomData);
-            res.json({ success: true, logSaved: true });
-
-            const logEntry = [
-                crypto.randomUUID(), timestamp, sessionUsername, roomName, itemKey, serverOldValue, cleanValue, cleanNote || '手動変更'
-            ];
-            setImmediate(() => {
-                enqueueLog(logEntry);
-            });
-
-        } catch (error) {
-            console.error('数量更新エラー:', error.message);
-            res.status(500).json({ error: '数量の更新に失敗しました' });
-        } finally {
-            isWriting = false;
+        if (!targetRowIndex || isNaN(targetRowIndex) || targetRowIndex < 2) {
+            return res.status(400).json({ error: '有効な行番号が指定されていません' });
         }
-    });
+        if (!roomName || typeof roomName !== 'string' || roomName.length > 100) {
+            return res.status(400).json({ error: '不正な教室名です' });
+        }
+        if (!ALLOWED_QUANTITY_COLUMNS.includes(itemKey)) {
+            return res.status(400).json({ error: `列「${itemKey}」の変更は許可されていません` });
+        }
+
+        const cleanValue = (newValue !== null && newValue !== undefined) ? String(newValue).trim() : '';
+        if (itemKey.includes('数') || itemKey.includes('一人用')) {
+            const parsedInt = parseInt(cleanValue, 10);
+            if (isNaN(parsedInt) || parsedInt < 0 || String(parsedInt) !== cleanValue) {
+                return res.status(400).json({ error: '数量は0以上の整数を入力してください' });
+            }
+        } else {
+            if (cleanValue.length > 300) {
+                return res.status(400).json({ error: '入力文字列が長すぎます（最大300文字）' });
+            }
+        }
+
+        const cleanNote = note ? String(note).trim().slice(0, 300) : '';
+
+        const targetRoom = cachedClassroomData.find(r => r.rowIndex === targetRowIndex);
+        if (!targetRoom || targetRoom['教室名'] !== roomName) {
+            return res.status(400).json({ error: '対象の教室が見つかりません' });
+        }
+
+        const headers = cachedHeaders;
+        const targetColIndex = headers.indexOf(itemKey);
+        if (targetColIndex === -1) {
+            return res.status(400).json({ error: `スプレッドシートに「${itemKey}」列が存在しません` });
+        }
+
+        const serverOldValue = String(targetRoom[itemKey] || '0');
+        const colLetter = colIndexToLetter(targetColIndex);
+        const timestamp = getFormattedTimestamp();
+
+        const previousRev = targetRoom._rev || 1;
+        const newRev = previousRev + 1;
+        targetRoom._rev = newRev;
+        const previousValue = targetRoom[itemKey];
+
+        // メモリキャッシュ更新＆SSE配信
+        targetRoom[itemKey] = cleanValue;
+        broadcastSSE('data_updated', cachedClassroomData);
+
+        res.json({ success: true, pending: true });
+
+        const logEntry = [
+            crypto.randomUUID(), timestamp, sessionUsername, roomName, itemKey, serverOldValue, cleanValue, cleanNote || '手動変更'
+        ];
+
+        scheduleSheetWrite(async () => {
+            try {
+                await executeWithRetry(() => sheetsCall('update', `管理データ!${colLetter}${targetRowIndex}`, () =>
+                    rawSheets.spreadsheets.values.update({
+                        spreadsheetId: process.env.SPREADSHEET_ID,
+                        range: `'管理データ'!${colLetter}${targetRowIndex}`,
+                        valueInputOption: 'USER_ENTERED',
+                        requestBody: { values: [[cleanValue]] }
+                    })
+                ));
+
+                enqueueLog(logEntry);
+            } catch (error) {
+                console.error(`[QTY-SAVE-FAILED] 教室: ${roomName}, エラー: ${error.message}`);
+                const currentRoomInCache = cachedClassroomData.find(r => r.rowIndex === targetRowIndex);
+                if (currentRoomInCache && currentRoomInCache._rev === newRev) {
+                    currentRoomInCache[itemKey] = previousValue;
+                    currentRoomInCache._rev = previousRev;
+
+                    broadcastSSE('data_updated', cachedClassroomData);
+                    broadcastSSEError(`「${roomName}」の数量更新保存に失敗したため、元の値に戻しました。`);
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('数量更新エラー:', error.message);
+        res.status(500).json({ error: '数量の更新処理受付に失敗しました' });
+    }
 });
 
 app.get('/api/logs/:roomName', requireCommittee, async (req, res) => {
