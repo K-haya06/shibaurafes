@@ -486,9 +486,9 @@ h1 {
     border: 1px solid #ffeeba;
 }
 
-.status-badge[data-status="不備あり"],
+.status-badge[data-status="対応中"],
 .status-badge[data-status="再度"],
-.status-pill[data-status="不備あり"],
+.status-pill[data-status="対応中"],
 .status-pill[data-status="再度"] {
     background-color: #f8d7da;
     color: #721c24;
