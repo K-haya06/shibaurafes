@@ -49,7 +49,7 @@ if (process.env.GOOGLE_CREDENTIALS_JSON) {
 
 const rawSheets = google.sheets({ version: 'v4', auth });
 
-// --- パフォーマンス計測・ログ集計 (残しています) ---
+// --- パフォーマンス計測・ログ集計 ---
 let metricsAggregation = {
     updateSuccessCount: 0,
     updateErrorCount: 0,
@@ -263,6 +263,18 @@ function broadcastSSE(eventType, rawData) {
     });
 }
 
+function broadcastSSERollback(rollbackPayload) {
+    sseClients = sseClients.filter(client => {
+        try {
+            const payload = `event: rollback\ndata: ${JSON.stringify(rollbackPayload)}\n\n`;
+            client.res.write(payload);
+            return true;
+        } catch (err) {
+            return false;
+        }
+    });
+}
+
 function broadcastSSEError(message) {
     sseClients = sseClients.filter(client => {
         try {
@@ -286,7 +298,7 @@ setInterval(() => {
     });
 }, 25000);
 
-// --- スプレッドシート同期（取得範囲を旧バージョンの100行に限定） ---
+// --- スプレッドシート同期 ---
 async function fetchAndSyncFromSpreadsheet() {
     if (pendingWriteCount > 0) return;
 
@@ -520,7 +532,7 @@ app.get('/api/classrooms', requireAuth, async (req, res) => {
     }
 });
 
-// --- 超高速進捗更新 API ---
+// --- 進捗更新 API（仮更新・SSE即時配信・バックグラウンド保存・ロールバック対応） ---
 app.post('/api/update', requireCommittee, async (req, res) => {
     const apiStartTime = Date.now();
 
@@ -560,6 +572,7 @@ app.post('/api/update', requireCommittee, async (req, res) => {
         targetRoom._rev = newRev;
 
         const affectedRoomsBackup = [];
+        let targetColName = columnName;
 
         if (action === 'claim' || action === 'unclaim') {
             if (action === 'claim') {
@@ -615,7 +628,6 @@ app.post('/api/update', requireCommittee, async (req, res) => {
                 return res.status(400).json({ error: '更新対象の列名が指定されていません' });
             }
 
-            let targetColName = columnName;
             if (!targetColName.endsWith('_Web')) {
                 const baseName = targetColName.replace('_表示用', '').replace('_チェック', '').replace('_', '');
                 targetColName = `${baseName}_Web`;
@@ -647,20 +659,23 @@ app.post('/api/update', requireCommittee, async (req, res) => {
                 crypto.randomUUID(), timestamp, sessionUsername, roomName, columnName, oldValueRaw, value, '進捗ステータス変更'
             ]);
 
+            // メモリキャッシュを仮更新（表示用＆Web用）
             targetRoom[targetColName] = valueWithTimestamp;
             targetRoom[columnName] = value;
+            const displayKey = targetColName.replace('_Web', '_表示用');
+            targetRoom[displayKey] = value;
         }
 
-        // 1. 他接続端末へSSEで即時配信
+        // 1. 全端末へ SSE で「仮更新」を即時配信 ⚡️
         broadcastSSE('data_updated', cachedClassroomData);
 
-        // 2. メトリクス集計 & レスポンス返却
+        // 2. メトリクス集計 & リクエスト送信者へ成功を即時応答
         const totalApiMs = Date.now() - apiStartTime;
         metricsAggregation.updateSuccessCount++;
         metricsAggregation.totalUpdateDurationMs += totalApiMs;
         res.json({ success: true, pending: true });
 
-        // 3. バックグラウンドでスプレッドシート非同期保存
+        // 3. バックグラウンドで Google Sheets へ保存開始
         scheduleSheetWrite(async () => {
             try {
                 if (valueRanges.length > 0) {
@@ -675,14 +690,17 @@ app.post('/api/update', requireCommittee, async (req, res) => {
                     ));
                 }
 
+                // 【成功時】ログ追加
                 logEntries.forEach(logEntry => enqueueLog(logEntry));
 
             } catch (error) {
+                // 【失敗時】
                 metricsAggregation.updateErrorCount++;
                 console.error(`[BACKGROUND-SAVE-FAILED] 教室: ${roomName}, エラー: ${error.message}`);
 
                 const currentRoomInCache = cachedClassroomData.find(r => r.rowIndex === targetRowIndex);
                 if (currentRoomInCache && currentRoomInCache._rev === newRev) {
+                    // 1) メモリキャッシュを元の値に戻す
                     Object.assign(currentRoomInCache, previousStateSnapshot);
                     currentRoomInCache._rev = previousRev;
 
@@ -690,8 +708,14 @@ app.post('/api/update', requireCommittee, async (req, res) => {
                         b.room['担当者'] = b.oldAssignee;
                     });
 
-                    broadcastSSE('data_updated', cachedClassroomData);
-                    broadcastSSEError(`「${roomName}」の更新保存に失敗したため、状態を戻しました。`);
+                    // 2) 全端末へ SSE で「元に戻す（ロールバック）」を通知 🔄
+                    broadcastSSERollback({
+                        rowIndex: targetRowIndex,
+                        roomName: roomName,
+                        columnName: targetColName,
+                        revertedRoom: currentRoomInCache,
+                        message: `「${roomName}」の保存に失敗したため、元の値に戻しました。`
+                    });
                 }
             }
         });
@@ -756,6 +780,7 @@ app.post('/api/update-quantity', requireCommittee, async (req, res) => {
         targetRoom._rev = newRev;
         const previousValue = targetRoom[itemKey];
 
+        // 1. 仮更新 ＆ 全端末へ SSE 配信 ⚡️
         targetRoom[itemKey] = cleanValue;
         broadcastSSE('data_updated', cachedClassroomData);
 
@@ -765,6 +790,7 @@ app.post('/api/update-quantity', requireCommittee, async (req, res) => {
             crypto.randomUUID(), timestamp, sessionUsername, roomName, itemKey, serverOldValue, cleanValue, cleanNote || '手動変更'
         ];
 
+        // 2. バックグラウンド保存
         scheduleSheetWrite(async () => {
             try {
                 await executeWithRetry(() => sheetsCall('update', `管理データ!${colLetter}${targetRowIndex}`, () =>
@@ -781,11 +807,17 @@ app.post('/api/update-quantity', requireCommittee, async (req, res) => {
                 console.error(`[QTY-SAVE-FAILED] 教室: ${roomName}, エラー: ${error.message}`);
                 const currentRoomInCache = cachedClassroomData.find(r => r.rowIndex === targetRowIndex);
                 if (currentRoomInCache && currentRoomInCache._rev === newRev) {
+                    // ロールバック
                     currentRoomInCache[itemKey] = previousValue;
                     currentRoomInCache._rev = previousRev;
 
-                    broadcastSSE('data_updated', cachedClassroomData);
-                    broadcastSSEError(`「${roomName}」の数量更新保存に失敗したため、元の値に戻しました。`);
+                    broadcastSSERollback({
+                        rowIndex: targetRowIndex,
+                        roomName: roomName,
+                        columnName: itemKey,
+                        revertedRoom: currentRoomInCache,
+                        message: `「${roomName}」の数量更新保存に失敗したため、元の値に戻しました。`
+                    });
                 }
             }
         });

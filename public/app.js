@@ -151,6 +151,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // ⚡️ 全端末へ「元に戻す（ロールバック）」を通知 🔄
+        eventSource.addEventListener('rollback', (e) => {
+            try {
+                const payload = JSON.parse(e.data);
+                const targetRoom = classroomData.find(r => r.rowIndex === payload.rowIndex);
+                if (targetRoom) {
+                    Object.assign(targetRoom, payload.revertedRoom);
+                    if (currentSelectedRoom && currentSelectedRoom.rowIndex === payload.rowIndex) {
+                        currentSelectedRoom = targetRoom;
+                        updateModalCheckArea();
+                    }
+                    renderFilteredCards();
+                }
+                alert(`【自動復元】${payload.message || '保存処理に失敗したため、変更を元に戻しました。'}`);
+            } catch (err) {
+                console.error('SSE rollback parse error:', err);
+            }
+        });
+
         eventSource.addEventListener('update_failed', (e) => {
             try {
                 const data = JSON.parse(e.data);
@@ -728,7 +747,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 完全即時UI反映（ボタン連打防止＆爆速レスポンス） ---
+    // --- ⚡️ 楽観的UI仮更新（ボタン連打防止＆即時フィードバック） ---
     if (quickStatusActions) {
         quickStatusActions.querySelectorAll('.btn-action').forEach(btn => {
             btn.addEventListener('click', async (e) => {
@@ -752,12 +771,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                // ★ 操作端末の画面を「押した瞬間」に即座に更新する
-                const oldValBackup = currentSelectedRoom[step.key];
+                // 1. 【仮更新】操作端末の画面を「押した瞬間」に即座に更新する ⚡️
+                const oldDisplayVal = currentSelectedRoom[step.key];
+                const oldWebVal = currentSelectedRoom[step.updateKey];
+
                 currentSelectedRoom[step.key] = targetVal;
+                currentSelectedRoom[step.updateKey] = targetVal;
+
                 updateModalCheckArea();
                 renderFilteredCards();
 
+                // 2. サーバーへリクエスト送信
                 try {
                     const res = await fetch('/api/update', {
                         method: 'POST',
@@ -772,14 +796,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const result = await res.json();
                     if (!res.ok) {
-                        // 失敗時のみ元の画面状態へ戻す
-                        currentSelectedRoom[step.key] = oldValBackup;
+                        // リクエスト失敗時のローカルロールバック 🔄
+                        currentSelectedRoom[step.key] = oldDisplayVal;
+                        currentSelectedRoom[step.updateKey] = oldWebVal;
                         updateModalCheckArea();
                         renderFilteredCards();
                         alert(`ステータス更新に失敗しました: ${result.error || '不明なエラー'}`);
                     }
                 } catch (err) {
-                    currentSelectedRoom[step.key] = oldValBackup;
+                    // 通信エラー時のローカルロールバック 🔄
+                    currentSelectedRoom[step.key] = oldDisplayVal;
+                    currentSelectedRoom[step.updateKey] = oldWebVal;
                     updateModalCheckArea();
                     renderFilteredCards();
                     alert('通信エラーが発生しました。接続を確認してください。');
