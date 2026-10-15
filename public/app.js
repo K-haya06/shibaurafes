@@ -59,9 +59,75 @@ document.addEventListener('DOMContentLoaded', () => {
         { key: '片付け3次_表示用', updateKey: '片付け3次_Web', name: '片付け 3次' }
     ];
 
+    // ローカルストレージキー定数
+    const LAST_GLOBAL_STEP_KEY = 'shibaurafes_last_global_step';
+    const ROOM_STEPS_KEY = 'shibaurafes_room_steps';
+
     // 新しい役割判定ルール: 「委員会」のみ編集権限を許可
     function isCommitteeUser() {
         return currentUser && currentUser.role === '委員会';
+    }
+
+    // --- 全教室の完了状況から全体のデフォルトステップを計算 ---
+    function getGlobalDefaultStepIndex() {
+        if (!classroomData || classroomData.length === 0) return 0;
+
+        let globalStep = 0;
+        for (let i = 0; i < checkSteps.length; i++) {
+            const step = checkSteps[i];
+            const allCompleted = classroomData.every(item => item[step.key] === '完了');
+            if (allCompleted) {
+                if (i + 1 < checkSteps.length) {
+                    globalStep = i + 1;
+                } else {
+                    globalStep = i;
+                }
+            } else {
+                break;
+            }
+        }
+        return globalStep;
+    }
+
+    // --- 各カード・モーダルで表示すべきステップの決定（優先度制御） ---
+    function getCardDefaultStepIndex(item) {
+        const globalStep = getGlobalDefaultStepIndex();
+        const savedLastGlobalStep = parseInt(localStorage.getItem(LAST_GLOBAL_STEP_KEY) || '0', 10);
+
+        // 全体進捗が進んだ場合は、ローカル個別のオーバーライドをクリアして全体進捗を最優先にする
+        if (globalStep > savedLastGlobalStep) {
+            localStorage.setItem(LAST_GLOBAL_STEP_KEY, globalStep.toString());
+            // 各教室のローカル保存ステップもリセット
+            localStorage.removeItem(ROOM_STEPS_KEY);
+            delete item._currentStepIndex;
+            return globalStep;
+        }
+
+        // 個別で手動選択したステップがあればそれを優先
+        if (item._currentStepIndex !== undefined) {
+            return item._currentStepIndex;
+        }
+
+        return globalStep;
+    }
+
+    // --- ローカルストレージへのステップ保存・読み込みヘルパー ---
+    function saveRoomStepToLocal(rowIndex, stepIndex) {
+        try {
+            const savedSteps = JSON.parse(localStorage.getItem(ROOM_STEPS_KEY) || '{}');
+            savedSteps[rowIndex] = stepIndex;
+            localStorage.setItem(ROOM_STEPS_KEY, JSON.stringify(savedSteps));
+        } catch (e) {
+            console.error('ローカルストレージ保存エラー:', e);
+        }
+    }
+
+    function getSavedRoomStepsFromLocal() {
+        try {
+            return JSON.parse(localStorage.getItem(ROOM_STEPS_KEY) || '{}');
+        } catch (e) {
+            return {};
+        }
     }
 
     // --- SSE 接続処理 ---
@@ -88,10 +154,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateClassroomData(newData) {
+        const savedRoomSteps = getSavedRoomStepsFromLocal();
+
         classroomData = newData.map(newItem => {
             const oldItem = classroomData.find(old => old.rowIndex === newItem.rowIndex);
+
             if (oldItem && oldItem._currentStepIndex !== undefined) {
                 newItem._currentStepIndex = oldItem._currentStepIndex;
+            } else if (savedRoomSteps[newItem.rowIndex] !== undefined) {
+                newItem._currentStepIndex = savedRoomSteps[newItem.rowIndex];
             }
             return newItem;
         });
@@ -126,7 +197,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (logoutBtn) logoutBtn.classList.remove('hidden');
             if (loginModal) loginModal.classList.add('hidden');
 
-            // 全ユーザーに検索エリアを表示
             if (searchBoxContainer) {
                 searchBoxContainer.classList.remove('hidden');
             }
@@ -201,7 +271,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 全教室の閲覧・検索（制限なし）
     function renderFilteredCards() {
         const keyword = searchInput ? searchInput.value.toLowerCase().trim() : '';
         if (keyword) {
@@ -230,19 +299,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             renderCardsByFloor(classroomData);
         }
-    }
-
-    function getCardDefaultStepIndex(item) {
-        if (item._currentStepIndex !== undefined) {
-            return item._currentStepIndex;
-        }
-        for (let i = checkSteps.length - 1; i >= 0; i--) {
-            const val = item[checkSteps[i].key];
-            if (val && val !== '未実施') {
-                return i;
-            }
-        }
-        return 0;
     }
 
     function setSafeText(id, text) {
@@ -525,7 +581,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const qtyEditBoxes = document.querySelectorAll('.qty-edit-box');
 
-        // 「委員会」以外の役割では編集操作領域を完全に隠す
         if (!isCommitteeUser()) {
             if (quickStatusActions) quickStatusActions.classList.add('hidden');
             if (modalClaimBtn) modalClaimBtn.classList.add('hidden');
@@ -591,6 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentStepIndex--;
                 if (currentSelectedRoom) {
                     currentSelectedRoom._currentStepIndex = currentStepIndex;
+                    saveRoomStepToLocal(currentSelectedRoom.rowIndex, currentStepIndex);
                 }
                 updateModalCheckArea();
             }
@@ -603,6 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentStepIndex++;
                 if (currentSelectedRoom) {
                     currentSelectedRoom._currentStepIndex = currentStepIndex;
+                    saveRoomStepToLocal(currentSelectedRoom.rowIndex, currentStepIndex);
                 }
                 updateModalCheckArea();
             }
@@ -632,6 +689,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 currentSelectedRoom._currentStepIndex = currentStepIndex;
+                saveRoomStepToLocal(targetRoomIndex, currentStepIndex);
 
                 try {
                     const res = await fetch('/api/update', {
@@ -646,9 +704,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
 
                     if (res.ok) {
-                        if (targetVal === '完了' && currentStepIndex < checkSteps.length - 1) {
-                            currentStepIndex++;
-                        }
+                        // ステータス更新成功後の処理
                     } else {
                         const err = await res.json();
                         alert(`ステータス更新に失敗しました: ${err.error}`);
