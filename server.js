@@ -532,7 +532,7 @@ app.get('/api/classrooms', requireAuth, async (req, res) => {
     }
 });
 
-// --- 進捗更新 API（仮更新・SSE即時配信・バックグラウンド保存・ロールバック対応） ---
+// --- Webアプリからの進捗更新 API ---
 app.post('/api/update', requireCommittee, async (req, res) => {
     const apiStartTime = Date.now();
 
@@ -572,7 +572,6 @@ app.post('/api/update', requireCommittee, async (req, res) => {
         targetRoom._rev = newRev;
 
         const affectedRoomsBackup = [];
-        let targetColName = columnName;
 
         if (action === 'claim' || action === 'unclaim') {
             if (action === 'claim') {
@@ -628,6 +627,7 @@ app.post('/api/update', requireCommittee, async (req, res) => {
                 return res.status(400).json({ error: '更新対象の列名が指定されていません' });
             }
 
+            let targetColName = columnName;
             if (!targetColName.endsWith('_Web')) {
                 const baseName = targetColName.replace('_表示用', '').replace('_チェック', '').replace('_', '');
                 targetColName = `${baseName}_Web`;
@@ -641,35 +641,44 @@ app.post('/api/update', requireCommittee, async (req, res) => {
                 return res.status(400).json({ error: `進捗ステータス「${value}」は無効です。` });
             }
 
+            const displayColName = targetColName.replace('_Web', '_表示用');
             const targetColIndex = headers.indexOf(targetColName);
+            const displayColIndex = headers.indexOf(displayColName);
+
             if (targetColIndex === -1) {
                 return res.status(400).json({ error: `指定された列「${targetColName}」がシート内に存在しません` });
             }
 
             const oldValueRaw = targetRoom[columnName] || targetRoom[targetColName] || '未実施';
             const valueWithTimestamp = `${value} ${timestamp}`;
-            const colLetter = colIndexToLetter(targetColIndex);
 
+            // スプレッドシート保存バッチ: Web用と表示用の両方を同時更新
             valueRanges.push({
-                range: `'管理データ'!${colLetter}${targetRowIndex}`,
+                range: `'管理データ'!${colIndexToLetter(targetColIndex)}${targetRowIndex}`,
                 values: [[valueWithTimestamp]]
             });
+
+            if (displayColIndex !== -1) {
+                valueRanges.push({
+                    range: `'管理データ'!${colIndexToLetter(displayColIndex)}${targetRowIndex}`,
+                    values: [[value]]
+                });
+            }
 
             logEntries.push([
                 crypto.randomUUID(), timestamp, sessionUsername, roomName, columnName, oldValueRaw, value, '進捗ステータス変更'
             ]);
 
-            // メモリキャッシュを仮更新（表示用＆Web用）
+            // メモリキャッシュを仮更新
             targetRoom[targetColName] = valueWithTimestamp;
+            targetRoom[displayColName] = value;
             targetRoom[columnName] = value;
-            const displayKey = targetColName.replace('_Web', '_表示用');
-            targetRoom[displayKey] = value;
         }
 
         // 1. 全端末へ SSE で「仮更新」を即時配信 ⚡️
         broadcastSSE('data_updated', cachedClassroomData);
 
-        // 2. メトリクス集計 & リクエスト送信者へ成功を即時応答
+        // 2. メトリクス集計 & リクエスト送信者へ即時応答
         const totalApiMs = Date.now() - apiStartTime;
         metricsAggregation.updateSuccessCount++;
         metricsAggregation.totalUpdateDurationMs += totalApiMs;
@@ -690,17 +699,14 @@ app.post('/api/update', requireCommittee, async (req, res) => {
                     ));
                 }
 
-                // 【成功時】ログ追加
                 logEntries.forEach(logEntry => enqueueLog(logEntry));
 
             } catch (error) {
-                // 【失敗時】
                 metricsAggregation.updateErrorCount++;
                 console.error(`[BACKGROUND-SAVE-FAILED] 教室: ${roomName}, エラー: ${error.message}`);
 
                 const currentRoomInCache = cachedClassroomData.find(r => r.rowIndex === targetRowIndex);
                 if (currentRoomInCache && currentRoomInCache._rev === newRev) {
-                    // 1) メモリキャッシュを元の値に戻す
                     Object.assign(currentRoomInCache, previousStateSnapshot);
                     currentRoomInCache._rev = previousRev;
 
@@ -708,7 +714,6 @@ app.post('/api/update', requireCommittee, async (req, res) => {
                         b.room['担当者'] = b.oldAssignee;
                     });
 
-                    // 2) 全端末へ SSE で「元に戻す（ロールバック）」を通知 🔄
                     broadcastSSERollback({
                         rowIndex: targetRowIndex,
                         roomName: roomName,
@@ -724,6 +729,146 @@ app.post('/api/update', requireCommittee, async (req, res) => {
         metricsAggregation.updateErrorCount++;
         console.error('更新API初期エラー:', error.message);
         res.status(500).json({ error: '更新処理の受付に失敗しました' });
+    }
+});
+
+// --- Discord Bot 連携専用 API エンドポイント ---
+app.post('/api/discord-apply', async (req, res) => {
+    try {
+        await ensureInitialLoad();
+
+        const botSecret = req.headers['x-bot-secret'];
+        if (process.env.BOT_API_SECRET && botSecret !== process.env.BOT_API_SECRET) {
+            return res.status(403).json({ error: '認証エラー: 無効なBot API Secretキーです' });
+        }
+
+        const { groupName, applyType, nickname } = req.body;
+
+        if (!groupName || !applyType) {
+            return res.status(400).json({ error: '団体名 (groupName) と 申請種別 (applyType) は必須です' });
+        }
+
+        const targetRoom = cachedClassroomData.find(r => (r['団体名'] || '').trim() === groupName.trim());
+        if (!targetRoom) {
+            return res.status(404).json({ error: `団体名「${groupName}」に対応する教室データが見つかりませんでした` });
+        }
+
+        const columnMap = {
+            '準備_1次チェック': '準備1次_Discord',
+            '準備_2次チェック': '準備2次_Discord',
+            '準備_3次チェック': '準備3次_Discord',
+            '片付け_1次チェック': '片付け1次_Discord',
+            '片付け_2次チェック': '片付け2次_Discord',
+            '片付け_3次チェック': '片付け3次_Discord',
+        };
+
+        const targetDiscordCol = columnMap[applyType];
+        if (!targetDiscordCol) {
+            return res.status(400).json({ error: `未対応の申請種別です: ${applyType}` });
+        }
+
+        const targetWebCol = targetDiscordCol.replace('_Discord', '_Web');
+        const targetDisplayCol = targetDiscordCol.replace('_Discord', '_表示用');
+
+        const headers = cachedHeaders;
+        const discordColIdx = headers.indexOf(targetDiscordCol);
+        const webColIdx = headers.indexOf(targetWebCol);
+        const displayColIdx = headers.indexOf(targetDisplayCol);
+
+        if (discordColIdx === -1) {
+            return res.status(400).json({ error: `シート内に「${targetDiscordCol}」列が存在しません` });
+        }
+
+        const timestamp = getFormattedTimestamp();
+        const valueWithTime = `依頼中 ${timestamp}`;
+        const targetRowIndex = targetRoom.rowIndex;
+
+        const previousStateSnapshot = { ...targetRoom };
+        const previousRev = targetRoom._rev || 1;
+        const newRev = previousRev + 1;
+        targetRoom._rev = newRev;
+
+        // メモリキャッシュを仮更新
+        targetRoom[targetDiscordCol] = valueWithTime;
+        targetRoom[targetWebCol] = valueWithTime;
+        targetRoom[targetDisplayCol] = '依頼中';
+
+        // 1. 全Web端末へ SSE で「即時配信」⚡️
+        broadcastSSE('data_updated', cachedClassroomData);
+
+        // 2. Bot へ即時応答
+        res.json({
+            success: true,
+            roomName: targetRoom['教室名'],
+            groupName: groupName,
+            status: '依頼中',
+            timestamp: timestamp
+        });
+
+        // 3. スプレッドシート保存バッチ
+        const valueRanges = [
+            {
+                range: `'管理データ'!${colIndexToLetter(discordColIdx)}${targetRowIndex}`,
+                values: [[valueWithTime]]
+            }
+        ];
+        if (webColIdx !== -1) {
+            valueRanges.push({
+                range: `'管理データ'!${colIndexToLetter(webColIdx)}${targetRowIndex}`,
+                values: [[valueWithTime]]
+            });
+        }
+        if (displayColIdx !== -1) {
+            valueRanges.push({
+                range: `'管理データ'!${colIndexToLetter(displayColIdx)}${targetRowIndex}`,
+                values: [['依頼中']]
+            });
+        }
+
+        scheduleSheetWrite(async () => {
+            try {
+                await executeWithRetry(() => sheetsCall('batchUpdate', '管理データ', () =>
+                    rawSheets.spreadsheets.values.batchUpdate({
+                        spreadsheetId: process.env.SPREADSHEET_ID,
+                        requestBody: {
+                            valueInputOption: 'USER_ENTERED',
+                            data: valueRanges
+                        }
+                    })
+                ));
+
+                const logEntry = [
+                    crypto.randomUUID(),
+                    timestamp,
+                    `Discord (${nickname || groupName})`,
+                    targetRoom['教室名'],
+                    targetDiscordCol,
+                    previousStateSnapshot[targetDiscordCol] || '未実施',
+                    '依頼中',
+                    'Discordスラッシュコマンド申請'
+                ];
+                enqueueLog(logEntry);
+
+            } catch (error) {
+                console.error(`[DISCORD-APPLY-SAVE-FAILED] 教室: ${targetRoom['教室名']}, エラー: ${error.message}`);
+                const currentRoomInCache = cachedClassroomData.find(r => r.rowIndex === targetRowIndex);
+                if (currentRoomInCache && currentRoomInCache._rev === newRev) {
+                    Object.assign(currentRoomInCache, previousStateSnapshot);
+                    currentRoomInCache._rev = previousRev;
+                    broadcastSSERollback({
+                        rowIndex: targetRowIndex,
+                        roomName: targetRoom['教室名'],
+                        columnName: targetDiscordCol,
+                        revertedRoom: currentRoomInCache,
+                        message: `Discordからの「${targetRoom['教室名']}」申請保存に失敗したため取り消されました。`
+                    });
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Discord API申請処理エラー:', error.message);
+        res.status(500).json({ error: 'サーバー内部エラーが発生しました' });
     }
 });
 
@@ -780,7 +925,6 @@ app.post('/api/update-quantity', requireCommittee, async (req, res) => {
         targetRoom._rev = newRev;
         const previousValue = targetRoom[itemKey];
 
-        // 1. 仮更新 ＆ 全端末へ SSE 配信 ⚡️
         targetRoom[itemKey] = cleanValue;
         broadcastSSE('data_updated', cachedClassroomData);
 
@@ -790,7 +934,6 @@ app.post('/api/update-quantity', requireCommittee, async (req, res) => {
             crypto.randomUUID(), timestamp, sessionUsername, roomName, itemKey, serverOldValue, cleanValue, cleanNote || '手動変更'
         ];
 
-        // 2. バックグラウンド保存
         scheduleSheetWrite(async () => {
             try {
                 await executeWithRetry(() => sheetsCall('update', `管理データ!${colLetter}${targetRowIndex}`, () =>
@@ -807,7 +950,6 @@ app.post('/api/update-quantity', requireCommittee, async (req, res) => {
                 console.error(`[QTY-SAVE-FAILED] 教室: ${roomName}, エラー: ${error.message}`);
                 const currentRoomInCache = cachedClassroomData.find(r => r.rowIndex === targetRowIndex);
                 if (currentRoomInCache && currentRoomInCache._rev === newRev) {
-                    // ロールバック
                     currentRoomInCache[itemKey] = previousValue;
                     currentRoomInCache._rev = previousRev;
 
