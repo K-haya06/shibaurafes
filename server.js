@@ -49,7 +49,7 @@ if (process.env.GOOGLE_CREDENTIALS_JSON) {
 
 const rawSheets = google.sheets({ version: 'v4', auth });
 
-// --- パフォーマンス計測・ログ集計 ---
+// --- パフォーマンス計測・ログ集計 (残しています) ---
 let metricsAggregation = {
     updateSuccessCount: 0,
     updateErrorCount: 0,
@@ -137,11 +137,10 @@ let sseClients = [];
 let isInitialLoaded = false;
 let initPromise = null;
 
-// バックグラウンド書き込みキュー
 let sheetWriteQueue = Promise.resolve();
 let pendingWriteCount = 0;
 
-// --- バックグラウンド操作ログ保存キュー (永続化付き) ---
+// --- バックグラウンド操作ログ保存キュー ---
 const LOG_PERSIST_FILE = path.join(__dirname, 'data', 'pending_logs.json');
 const MAX_LOG_CACHE_SIZE = 100;
 let logCache = [];
@@ -158,10 +157,8 @@ function loadPersistedLogs() {
         if (fs.existsSync(LOG_PERSIST_FILE)) {
             const data = fs.readFileSync(LOG_PERSIST_FILE, 'utf8');
             pendingLogQueue = JSON.parse(data) || [];
-            console.log(`[LOG-QUEUE] ディスクから未処理ログ ${pendingLogQueue.length} 件を復元しました。`);
         }
     } catch (e) {
-        console.error('[LOG-QUEUE] 未処理ログの復元に失敗:', e.message);
         pendingLogQueue = [];
     }
 }
@@ -169,9 +166,7 @@ function loadPersistedLogs() {
 function savePersistedLogs() {
     try {
         fs.writeFileSync(LOG_PERSIST_FILE, JSON.stringify(pendingLogQueue), 'utf8');
-    } catch (e) {
-        console.error('[LOG-QUEUE] 未処理ログのディスク保存に失敗:', e.message);
-    }
+    } catch (e) {}
 }
 
 function addLogToCache(logEntry) {
@@ -202,11 +197,6 @@ function enqueueLog(logEntry) {
     addLogToCache(logEntry);
     pendingLogQueue.push(logObj);
     savePersistedLogs();
-
-    if (pendingLogQueue.length > 50) {
-        console.warn(`[LOG-QUEUE-HIGH-WATERMARK] キュー滞留数が警告水準に達しました: ${pendingLogQueue.length} 件`);
-    }
-
     processLogQueue();
 }
 
@@ -224,9 +214,6 @@ async function processLogQueue() {
         }
 
         item.attempts++;
-        const queueWaitMs = Date.now() - item.enqueuedAt;
-        const startTime = Date.now();
-
         try {
             const sheetRow = item.data.slice(1);
             await executeWithRetry(() => sheetsCall('append', '操作ログ', () =>
@@ -244,18 +231,11 @@ async function processLogQueue() {
                 processedLogIds.delete(oldest);
             }
 
-            const logSaveMs = Date.now() - startTime;
-            if (logSaveMs + queueWaitMs > 3000) {
-                console.warn(`[PERF-SLOW-LOG] queueWaitMs=${queueWaitMs}ms, logSaveMs=${logSaveMs}ms, attempts=${item.attempts}`);
-            }
-
             pendingLogQueue.shift();
             savePersistedLogs();
 
         } catch (err) {
-            console.error(`[LOG-QUEUE-ERROR] ログ追加失敗 (試行回数: ${item.attempts}):`, err.message);
             if (item.attempts >= 5) {
-                console.error(`[LOG-QUEUE-DROPPED] 5回失敗したためログを削除します (LogID: ${item.id})`);
                 pendingLogQueue.shift();
                 savePersistedLogs();
             } else {
@@ -306,18 +286,15 @@ setInterval(() => {
     });
 }, 25000);
 
-// --- スプレッドシート同期 ---
+// --- スプレッドシート同期（取得範囲を旧バージョンの100行に限定） ---
 async function fetchAndSyncFromSpreadsheet() {
-    if (pendingWriteCount > 0) {
-        // バックグラウンド書き込み滞留中は定期同期で上書きしない
-        return;
-    }
+    if (pendingWriteCount > 0) return;
 
     try {
-        const response = await sheetsCall('batchGet', '管理データ!A1:AZ', () =>
+        const response = await sheetsCall('batchGet', '管理データ!A1:AZ100', () =>
             rawSheets.spreadsheets.values.batchGet({
                 spreadsheetId: process.env.SPREADSHEET_ID,
-                ranges: ["'管理データ'!A1:AZ"]
+                ranges: ["'管理データ'!A1:AZ100"]
             })
         );
 
@@ -435,7 +412,6 @@ function requireCommittee(req, res, next) {
     next();
 }
 
-// バックグラウンドGoogle Sheets書き込みタスクのスケジューリング
 function scheduleSheetWrite(writeFn) {
     pendingWriteCount++;
     sheetWriteQueue = sheetWriteQueue.then(async () => {
@@ -544,7 +520,7 @@ app.get('/api/classrooms', requireAuth, async (req, res) => {
     }
 });
 
-// --- 楽観的更新対応・超高速進捗更新 API ---
+// --- 超高速進捗更新 API ---
 app.post('/api/update', requireCommittee, async (req, res) => {
     const apiStartTime = Date.now();
 
@@ -578,7 +554,6 @@ app.post('/api/update', requireCommittee, async (req, res) => {
         const logEntries = [];
         const timestamp = getFormattedTimestamp();
 
-        // ロールバック用バックアップ作成（スナップショット）
         const previousStateSnapshot = { ...targetRoom };
         const previousRev = targetRoom._rev || 1;
         const newRev = previousRev + 1;
@@ -676,18 +651,17 @@ app.post('/api/update', requireCommittee, async (req, res) => {
             targetRoom[columnName] = value;
         }
 
-        // メモリキャッシュ即時反映 & 全端末へSSEブロードキャスト
+        // 1. 他接続端末へSSEで即時配信
         broadcastSSE('data_updated', cachedClassroomData);
 
-        // 操作端末へ即時レスポンス（Google Sheets完了を待たない）
+        // 2. メトリクス集計 & レスポンス返却
         const totalApiMs = Date.now() - apiStartTime;
         metricsAggregation.updateSuccessCount++;
         metricsAggregation.totalUpdateDurationMs += totalApiMs;
         res.json({ success: true, pending: true });
 
-        // バックグラウンドで Google Sheets に保存
+        // 3. バックグラウンドでスプレッドシート非同期保存
         scheduleSheetWrite(async () => {
-            const dataSaveStart = Date.now();
             try {
                 if (valueRanges.length > 0) {
                     await executeWithRetry(() => sheetsCall('batchUpdate', '管理データ', () =>
@@ -701,14 +675,12 @@ app.post('/api/update', requireCommittee, async (req, res) => {
                     ));
                 }
 
-                // 保存成功時にログ処理をキューへ追加
                 logEntries.forEach(logEntry => enqueueLog(logEntry));
 
             } catch (error) {
                 metricsAggregation.updateErrorCount++;
                 console.error(`[BACKGROUND-SAVE-FAILED] 教室: ${roomName}, エラー: ${error.message}`);
 
-                // ロールバック安全判定: 対象教室のリビジョンがこの更新のまま（＝後続の更新が起きていない）場合のみ書き戻す
                 const currentRoomInCache = cachedClassroomData.find(r => r.rowIndex === targetRowIndex);
                 if (currentRoomInCache && currentRoomInCache._rev === newRev) {
                     Object.assign(currentRoomInCache, previousStateSnapshot);
@@ -718,11 +690,8 @@ app.post('/api/update', requireCommittee, async (req, res) => {
                         b.room['担当者'] = b.oldAssignee;
                     });
 
-                    // ロールバック後の状態を全端末に即時再配信
                     broadcastSSE('data_updated', cachedClassroomData);
                     broadcastSSEError(`「${roomName}」の更新保存に失敗したため、状態を戻しました。`);
-                } else {
-                    console.warn(`[ROLLBACK-SKIPPED] 後続の更新(rev:${currentRoomInCache ? currentRoomInCache._rev : 'N/A'})が存在するためロールバックをスキップしました`);
                 }
             }
         });
@@ -736,8 +705,6 @@ app.post('/api/update', requireCommittee, async (req, res) => {
 
 // 数量更新 API
 app.post('/api/update-quantity', requireCommittee, async (req, res) => {
-    const apiStartTime = Date.now();
-
     try {
         await ensureInitialLoad();
 
@@ -789,7 +756,6 @@ app.post('/api/update-quantity', requireCommittee, async (req, res) => {
         targetRoom._rev = newRev;
         const previousValue = targetRoom[itemKey];
 
-        // メモリキャッシュ更新＆SSE配信
         targetRoom[itemKey] = cleanValue;
         broadcastSSE('data_updated', cachedClassroomData);
 

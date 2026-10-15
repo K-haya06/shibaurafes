@@ -48,7 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentUser = null;
     let currentStepIndex = 0;
     let eventSource = null;
-    let isUpdatingStatus = false;
 
     const checkSteps = [
         { key: '準備1次_表示用', updateKey: '準備1次_Web', name: '準備 1次' },
@@ -181,9 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const updatedRoom = classroomData.find(r => r.rowIndex === currentSelectedRoom.rowIndex);
             if (updatedRoom) {
                 currentSelectedRoom = updatedRoom;
-                if (!isUpdatingStatus) {
-                    updateModalCheckArea();
-                }
+                updateModalCheckArea();
                 if (isCommitteeUser()) {
                     updateAssigneeUI(updatedRoom['担当者']);
                 }
@@ -684,8 +681,8 @@ document.addEventListener('DOMContentLoaded', () => {
             currentStatusBadgeEl.setAttribute('data-status', currentStatus);
         }
 
-        if (stepBackBtn) stepBackBtn.disabled = (currentStepIndex === 0 || isUpdatingStatus);
-        if (stepNextBtn) stepNextBtn.disabled = (currentStepIndex === checkSteps.length - 1 || isUpdatingStatus);
+        if (stepBackBtn) stepBackBtn.disabled = (currentStepIndex === 0);
+        if (stepNextBtn) stepNextBtn.disabled = (currentStepIndex === checkSteps.length - 1);
 
         if (isCommitteeUser()) {
             const activeUser = currentUser ? currentUser.username : '';
@@ -707,7 +704,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (stepBackBtn) {
         stepBackBtn.addEventListener('click', () => {
-            if (isUpdatingStatus) return;
             if (currentStepIndex > 0) {
                 currentStepIndex--;
                 if (currentSelectedRoom) {
@@ -721,7 +717,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (stepNextBtn) {
         stepNextBtn.addEventListener('click', () => {
-            if (isUpdatingStatus) return;
             if (currentStepIndex < checkSteps.length - 1) {
                 currentStepIndex++;
                 if (currentSelectedRoom) {
@@ -733,11 +728,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- 高速非同期レスポンス対応ワンタップボタン ---
+    // --- 完全即時UI反映（ボタン連打防止＆爆速レスポンス） ---
     if (quickStatusActions) {
         quickStatusActions.querySelectorAll('.btn-action').forEach(btn => {
             btn.addEventListener('click', async (e) => {
-                if (!currentSelectedRoom || !isCommitteeUser() || isUpdatingStatus) return;
+                if (!currentSelectedRoom || !isCommitteeUser()) return;
 
                 const targetVal = e.target.getAttribute('data-val');
                 const fixedStepIndex = currentStepIndex;
@@ -757,8 +752,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
+                // ★ 操作端末の画面を「押した瞬間」に即座に更新する
+                const oldValBackup = currentSelectedRoom[step.key];
+                currentSelectedRoom[step.key] = targetVal;
+                updateModalCheckArea();
+                renderFilteredCards();
+
                 try {
-                    // APIへ送信 (サーバー側でメモリ更新＆SSE即時配信が行われるためフロント楽観更新は不要)
                     const res = await fetch('/api/update', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -772,9 +772,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const result = await res.json();
                     if (!res.ok) {
-                        alert(`ステータス更新の受付に失敗しました: ${result.error || '不明なエラー'}`);
+                        // 失敗時のみ元の画面状態へ戻す
+                        currentSelectedRoom[step.key] = oldValBackup;
+                        updateModalCheckArea();
+                        renderFilteredCards();
+                        alert(`ステータス更新に失敗しました: ${result.error || '不明なエラー'}`);
                     }
                 } catch (err) {
+                    currentSelectedRoom[step.key] = oldValBackup;
+                    updateModalCheckArea();
+                    renderFilteredCards();
                     alert('通信エラーが発生しました。接続を確認してください。');
                 }
             });
