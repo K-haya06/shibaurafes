@@ -6,7 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchInput = document.getElementById('search-input');
     const searchClearBtn = document.getElementById('search-clear-btn');
 
-    // ログイン関連要素
+    const appLoadingScreen = document.getElementById('app-loading-screen');
+    const appMainContent = document.getElementById('app-main-content');
+
     const loginModal = document.getElementById('login-modal');
     const loginForm = document.getElementById('login-form');
     const loginUsernameInput = document.getElementById('login-username');
@@ -16,7 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginUserDisp = document.getElementById('login-user-disp');
     const logoutBtn = document.getElementById('logout-btn');
 
-    // モーダル関連要素
     const modal = document.getElementById('detail-modal');
     const modalOverlay = document.getElementById('modal-overlay');
     const modalCloseBtn = document.getElementById('modal-close-btn');
@@ -25,14 +26,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalClaimBtn = document.getElementById('modal-claim-btn');
     const modalUnclaimBtn = document.getElementById('modal-unclaim-btn');
 
-    // 進捗制御用要素
     const stepBackBtn = document.getElementById('step-back-btn');
     const stepNextBtn = document.getElementById('step-next-btn');
     const stepTitle = document.getElementById('current-step-name');
     const currentStatusBadgeEl = document.getElementById('current-status-badge');
     const quickStatusActions = document.getElementById('quick-status-actions');
 
-    // 編集・ログ制御用エレメント
     const adminDivider = document.getElementById('admin-divider');
     const adminFeatureAccordion = document.getElementById('admin-feature-accordion');
     const editItemKey = document.getElementById('edit-item-key');
@@ -49,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentUser = null;
     let currentStepIndex = 0;
     let eventSource = null;
+    let isUpdatingStatus = false; // ボタン連続押し・二重送信制御フラグ
 
     const checkSteps = [
         { key: '準備1次_表示用', updateKey: '準備1次_Web', name: '準備 1次' },
@@ -59,29 +59,31 @@ document.addEventListener('DOMContentLoaded', () => {
         { key: '片付け3次_表示用', updateKey: '片付け3次_Web', name: '片付け 3次' }
     ];
 
-    // ローカルストレージキー定数
     const LAST_GLOBAL_STEP_KEY = 'shibaurafes_last_global_step';
     const ROOM_STEPS_KEY = 'shibaurafes_room_steps';
 
-    // 新しい役割判定ルール: 「委員会」のみ編集権限を許可
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     function isCommitteeUser() {
         return currentUser && currentUser.role === '委員会';
     }
 
-    // --- 全教室の完了状況から全体のデフォルトステップを計算 ---
     function getGlobalDefaultStepIndex() {
         if (!classroomData || classroomData.length === 0) return 0;
-
         let globalStep = 0;
         for (let i = 0; i < checkSteps.length; i++) {
             const step = checkSteps[i];
             const allCompleted = classroomData.every(item => item[step.key] === '完了');
             if (allCompleted) {
-                if (i + 1 < checkSteps.length) {
-                    globalStep = i + 1;
-                } else {
-                    globalStep = i;
-                }
+                globalStep = (i + 1 < checkSteps.length) ? i + 1 : i;
             } else {
                 break;
             }
@@ -89,21 +91,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return globalStep;
     }
 
-    // --- 各カード・モーダルで表示すべきステップの決定（優先度制御） ---
     function getCardDefaultStepIndex(item) {
         const globalStep = getGlobalDefaultStepIndex();
         const savedLastGlobalStep = parseInt(localStorage.getItem(LAST_GLOBAL_STEP_KEY) || '0', 10);
 
-        // 全体進捗が進んだ場合は、ローカル個別のオーバーライドをクリアして全体進捗を最優先にする
         if (globalStep > savedLastGlobalStep) {
             localStorage.setItem(LAST_GLOBAL_STEP_KEY, globalStep.toString());
-            // 各教室のローカル保存ステップもリセット
             localStorage.removeItem(ROOM_STEPS_KEY);
             delete item._currentStepIndex;
             return globalStep;
         }
 
-        // 個別で手動選択したステップがあればそれを優先
         if (item._currentStepIndex !== undefined) {
             return item._currentStepIndex;
         }
@@ -111,7 +109,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return globalStep;
     }
 
-    // --- ローカルストレージへのステップ保存・読み込みヘルパー ---
     function saveRoomStepToLocal(rowIndex, stepIndex) {
         try {
             const savedSteps = JSON.parse(localStorage.getItem(ROOM_STEPS_KEY) || '{}');
@@ -130,7 +127,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- SSE 接続処理 ---
     function initSSE() {
         if (eventSource) {
             eventSource.close();
@@ -139,18 +135,24 @@ document.addEventListener('DOMContentLoaded', () => {
         eventSource = new EventSource('/api/events');
 
         eventSource.addEventListener('init', (e) => {
-            const data = JSON.parse(e.data);
-            updateClassroomData(data);
+            try {
+                const data = JSON.parse(e.data);
+                updateClassroomData(data);
+            } catch (err) {
+                console.error('SSE init parse error:', err);
+            }
         });
 
         eventSource.addEventListener('data_updated', (e) => {
-            const data = JSON.parse(e.data);
-            updateClassroomData(data);
+            try {
+                const data = JSON.parse(e.data);
+                updateClassroomData(data);
+            } catch (err) {
+                console.error('SSE update parse error:', err);
+            }
         });
 
-        eventSource.onerror = () => {
-            // 切断時はブラウザ標準機能で自動再接続される
-        };
+        eventSource.onerror = () => {};
     }
 
     function updateClassroomData(newData) {
@@ -158,7 +160,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         classroomData = newData.map(newItem => {
             const oldItem = classroomData.find(old => old.rowIndex === newItem.rowIndex);
-
             if (oldItem && oldItem._currentStepIndex !== undefined) {
                 newItem._currentStepIndex = oldItem._currentStepIndex;
             } else if (savedRoomSteps[newItem.rowIndex] !== undefined) {
@@ -171,8 +172,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const updatedRoom = classroomData.find(r => r.rowIndex === currentSelectedRoom.rowIndex);
             if (updatedRoom) {
                 currentSelectedRoom = updatedRoom;
-                updateModalCheckArea();
-                updateAssigneeUI(updatedRoom['担当者']);
+                if (!isUpdatingStatus) {
+                    updateModalCheckArea();
+                }
+                if (isCommitteeUser()) {
+                    updateAssigneeUI(updatedRoom['担当者']);
+                }
 
                 setSafeText('td-deskA-orig', updatedRoom['机α（元の数）'] || '0');
                 setSafeText('td-deskA-used', updatedRoom['机α（使用数）'] || '0');
@@ -188,27 +193,56 @@ document.addEventListener('DOMContentLoaded', () => {
         renderFilteredCards();
     }
 
-    function checkLoginState() {
-        const savedUser = localStorage.getItem('shibaurafes_user');
+    async function checkLoginState() {
+        if (appLoadingScreen) appLoadingScreen.classList.remove('hidden');
 
-        if (savedUser) {
-            currentUser = JSON.parse(savedUser);
-            if (loginUserDisp) loginUserDisp.textContent = `${currentUser.username} (${currentUser.role})`;
-            if (logoutBtn) logoutBtn.classList.remove('hidden');
-            if (loginModal) loginModal.classList.add('hidden');
+        try {
+            const res = await fetch('/api/me');
+            if (!res.ok) throw new Error('通信エラー');
 
-            if (searchBoxContainer) {
-                searchBoxContainer.classList.remove('hidden');
+            const authInfo = await res.json();
+
+            if (authInfo.authenticated) {
+                currentUser = authInfo.user;
+                if (loginUserDisp) loginUserDisp.textContent = `${currentUser.username} (${currentUser.role})`;
+                if (logoutBtn) logoutBtn.classList.remove('hidden');
+                if (loginModal) loginModal.classList.add('hidden');
+                if (searchBoxContainer) searchBoxContainer.classList.remove('hidden');
+
+                if (appMainContent) appMainContent.classList.remove('hidden');
+                if (appLoadingScreen) appLoadingScreen.classList.add('hidden');
+
+                initSSE();
+                await fetchData();
+            } else {
+                currentUser = null;
+                if (loginUserDisp) loginUserDisp.textContent = '未ログイン';
+                if (logoutBtn) logoutBtn.classList.add('hidden');
+                if (searchBoxContainer) searchBoxContainer.classList.add('hidden');
+
+                if (appLoadingScreen) appLoadingScreen.classList.add('hidden');
+                if (loginModal) loginModal.classList.remove('hidden');
+                if (eventSource) {
+                    eventSource.close();
+                    eventSource = null;
+                }
             }
-            initSSE();
-        } else {
-            currentUser = null;
-            if (loginUserDisp) loginUserDisp.textContent = '未ログイン';
-            if (logoutBtn) logoutBtn.classList.add('hidden');
-            if (loginModal) loginModal.classList.remove('hidden');
-            if (eventSource) {
-                eventSource.close();
-                eventSource = null;
+        } catch (err) {
+            console.error('セッション確認エラー:', err);
+            if (appLoadingScreen) {
+                appLoadingScreen.innerHTML = `
+                    <div style="text-align:center; padding: 20px; color: #dc3545;">
+                        <h3>通信エラーが発生しました</h3>
+                        <p>サーバーとの接続を確認できませんでした。</p>
+                        <button id="retry-auth-btn" style="padding: 8px 16px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">再試行</button>
+                    </div>
+                `;
+                const retryAuthBtn = document.getElementById('retry-auth-btn');
+                if (retryAuthBtn) {
+                    retryAuthBtn.addEventListener('click', () => {
+                        window.location.reload();
+                    });
+                }
             }
         }
     }
@@ -231,9 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const result = await res.json();
                 if (result.success) {
-                    localStorage.setItem('shibaurafes_user', JSON.stringify(result.user));
-                    checkLoginState();
-                    await fetchData();
+                    await checkLoginState();
                 } else {
                     if (loginErrorMsg) {
                         loginErrorMsg.textContent = result.message;
@@ -254,20 +286,33 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             await fetch('/api/logout', { method: 'POST' }).catch(() => {});
-            localStorage.removeItem('shibaurafes_user');
-            checkLoginState();
+            window.location.reload();
         });
     }
 
     async function fetchData() {
         if (!currentUser) return;
         try {
+            if (cardList && classroomData.length === 0) {
+                cardList.innerHTML = '<div style="text-align:center; padding: 20px; color: #6c757d;">データを読み込み中...</div>';
+            }
+
             const res = await fetch('/api/classrooms');
-            if (!res.ok) return;
+            if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+
             const newData = await res.json();
             updateClassroomData(newData);
         } catch (err) {
             console.error('データ取得失敗:', err);
+            if (cardList && classroomData.length === 0) {
+                cardList.innerHTML = `
+                    <div style="text-align:center; padding: 20px; color: #dc3545;">
+                        データの取得に失敗しました。<br>
+                        <button id="retry-fetch-btn" style="margin-top:10px; padding:6px 12px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer;">再試行</button>
+                    </div>`;
+                const retryBtn = document.getElementById('retry-fetch-btn');
+                if (retryBtn) retryBtn.addEventListener('click', fetchData);
+            }
         }
     }
 
@@ -278,8 +323,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const roomName = (item['教室名'] || '').toLowerCase();
                 const floor = (item['階数'] || '').toLowerCase();
                 const group = (item['団体名'] || '').toLowerCase();
-                const assignee = (item['担当者'] || '').toLowerCase();
                 const anteroom = String(item['控え室'] || '').toLowerCase();
+                const assignee = isCommitteeUser() ? (item['担当者'] || '').toLowerCase() : '';
 
                 const stepIdx = getCardDefaultStepIndex(item);
                 const step = checkSteps[stepIdx];
@@ -338,7 +383,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const stepIdx = getCardDefaultStepIndex(item);
                 const step = checkSteps[stepIdx];
                 const status = item[step.key] || '未実施';
-                const assignee = item['担当者'] || '';
 
                 const deskAMove = parseInt(item['机α（移動数）'] || 0, 10);
                 const deskBMove = parseInt(item['机β（移動数）'] || 0, 10);
@@ -349,15 +393,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 const chairDest = item['椅子移動先'] || '-';
 
                 const anteroom = (item['控え室'] || '').toString().trim();
+                const safeAnteroom = escapeHtml(anteroom);
                 const anteroomBadge = anteroom
-                    ? `<span class="card-anteroom-text" data-room="${anteroom}"><span class="full-label">控室: ${anteroom}</span><span class="short-label">${anteroom}</span></span>`
+                    ? `<span class="card-anteroom-text" data-room="${safeAnteroom}"><span class="full-label">控室: ${safeAnteroom}</span><span class="short-label">${safeAnteroom}</span></span>`
                     : '';
 
                 let assigneeHtml = '';
-                if (assignee) {
-                    assigneeHtml = `<span class="assignee-badge">${assignee}</span>`;
-                } else if (isCommitteeUser()) {
-                    assigneeHtml = `<button class="claim-card-btn">＋担当する</button>`;
+                if (isCommitteeUser()) {
+                    const assignee = item['担当者'] || '';
+                    if (assignee) {
+                        assigneeHtml = `<span class="assignee-badge">${escapeHtml(assignee)}</span>`;
+                    } else {
+                        assigneeHtml = `<button class="claim-card-btn">＋担当する</button>`;
+                    }
                 }
 
                 const card = document.createElement('div');
@@ -365,77 +413,76 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 card.innerHTML = `
                     <div class="card-header-top">
-                        <span class="room-title">${item['教室名'] || ''}</span>
-                        <span class="group-name">${item['団体名'] || '未設定'}</span>
+                        <span class="room-title">${escapeHtml(item['教室名'] || '')}</span>
+                        <span class="group-name">${escapeHtml(item['団体名'] || '未設定')}</span>
                     </div>
 
-                    <div class="card-assignee-row">
-                        ${assigneeHtml}
-                    </div>
+                    ${isCommitteeUser() ? `<div class="card-assignee-row">${assigneeHtml}</div>` : ''}
 
                     <div class="card-detail-rows">
                         <div class="card-detail-item">
                             <span class="label-title">机α</span>
                             <span class="colon">:</span>
-                            <span class="dest-text">${deskADest}</span>
+                            <span class="dest-text">${escapeHtml(deskADest)}</span>
                             <span class="text-particle">へ</span>
                             <span class="num-move-unit">${deskAMove}台</span>
                         </div>
                         <div class="card-detail-item">
                             <span class="label-title">机β</span>
                             <span class="colon">:</span>
-                            <span class="dest-text">${deskBDest}</span>
+                            <span class="dest-text">${escapeHtml(deskBDest)}</span>
                             <span class="text-particle">へ</span>
                             <span class="num-move-unit">${deskBMove}台</span>
                         </div>
                         <div class="card-detail-item">
                             <span class="label-title">椅子</span>
                             <span class="colon">:</span>
-                            <span class="dest-text">${chairDest}</span>
+                            <span class="dest-text">${escapeHtml(chairDest)}</span>
                             <span class="text-particle">へ</span>
                             <span class="num-move-unit">${chairMove}脚</span>
                         </div>
                     </div>
 
                     <div class="card-body">
-                        <span class="status-badge" data-status="${status}">
-                            ${step.name}: ${status}
+                        <span class="status-badge" data-status="${escapeHtml(status)}">
+                            ${escapeHtml(step.name)}: ${escapeHtml(status)}
                         </span>
                         ${anteroomBadge}
                     </div>
                 `;
 
-                const claimBtn = card.querySelector('.claim-card-btn');
-                if (claimBtn) {
-                    claimBtn.addEventListener('click', async (e) => {
-                        e.stopPropagation();
-                        if (!isCommitteeUser()) return;
-                        const stepIdx = getCardDefaultStepIndex(item);
-                        const step = checkSteps[stepIdx];
+                if (isCommitteeUser()) {
+                    const claimBtn = card.querySelector('.claim-card-btn');
+                    if (claimBtn) {
+                        claimBtn.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            const stepIdx = getCardDefaultStepIndex(item);
+                            const step = checkSteps[stepIdx];
 
-                        try {
-                            claimBtn.disabled = true;
-                            const res = await fetch('/api/update', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    rowIndex: item.rowIndex,
-                                    roomName: item['教室名'],
-                                    columnName: step.updateKey || step.key,
-                                    value: item[step.key] || '未実施',
-                                    action: 'claim'
-                                })
-                            });
-                            if (!res.ok) {
-                                const err = await res.json();
-                                alert(`担当登録に失敗しました: ${err.error}`);
+                            try {
+                                claimBtn.disabled = true;
+                                const res = await fetch('/api/update', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        rowIndex: item.rowIndex,
+                                        roomName: item['教室名'],
+                                        columnName: step.updateKey || step.key,
+                                        value: item[step.key] || '未実施',
+                                        action: 'claim'
+                                    })
+                                });
+                                const result = await res.json();
+                                if (!res.ok) {
+                                    alert(`担当登録に失敗しました: ${result.error}`);
+                                }
+                            } catch (err) {
+                                alert('通信エラーが発生しました');
+                            } finally {
+                                claimBtn.disabled = false;
                             }
-                        } catch (err) {
-                            alert('通信エラーが発生しました');
-                        } finally {
-                            claimBtn.disabled = false;
-                        }
-                    });
+                        });
+                    }
                 }
 
                 card.addEventListener('click', () => {
@@ -459,6 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateAssigneeUI(assigneeStr) {
+        if (!isCommitteeUser()) return;
         const assignee = assigneeStr || '';
         const badgeEl = document.getElementById('modal-assignee-badge') || document.getElementById('modal-assignee');
         if (badgeEl) {
@@ -487,7 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function formatDestHtml(destStr) {
         if (!destStr || destStr === '-') return '-';
-        return destStr.replace(/,\s*/g, '<br>');
+        return escapeHtml(destStr).replace(/,\s*/g, '<br>');
     }
 
     async function openModal(item) {
@@ -509,8 +557,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (anteroom) {
                 modalAnteroomEl.setAttribute('data-room', anteroom);
                 modalAnteroomEl.innerHTML = `
-                    <span class="full-label">控え室: ${anteroom}</span>
-                    <span class="short-label">${anteroom}</span>
+                    <span class="full-label">控え室: ${escapeHtml(anteroom)}</span>
+                    <span class="short-label">${escapeHtml(anteroom)}</span>
                 `;
                 modalAnteroomEl.classList.remove('hidden');
             } else {
@@ -518,7 +566,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        updateAssigneeUI(item['担当者']);
+        const modalAssigneeRow = document.querySelector('.modal-assignee-row');
+        const assignActionArea = document.getElementById('assign-action-area');
+
+        if (isCommitteeUser()) {
+            if (modalAssigneeRow) modalAssigneeRow.classList.remove('hidden');
+            if (assignActionArea) assignActionArea.classList.remove('hidden');
+            updateAssigneeUI(item['担当者']);
+        } else {
+            if (modalAssigneeRow) modalAssigneeRow.classList.add('hidden');
+            if (assignActionArea) assignActionArea.classList.add('hidden');
+        }
 
         setSafeText('val-leader', item['責任者'] || '-');
         setSafeText('val-subleader', item['副責任者'] || '-');
@@ -587,9 +645,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (modalUnclaimBtn) modalUnclaimBtn.classList.add('hidden');
             qtyEditBoxes.forEach(box => box.classList.add('hidden'));
 
-            if (adminDivider) adminDivider.classList.remove('hidden');
-            if (adminFeatureAccordion) adminFeatureAccordion.classList.remove('hidden');
-            await fetchLogs(item['教室名']);
+            if (adminDivider) adminDivider.classList.add('hidden');
+            if (adminFeatureAccordion) adminFeatureAccordion.classList.add('hidden');
         } else {
             if (quickStatusActions) quickStatusActions.classList.remove('hidden');
             if (modalClaimBtn) modalClaimBtn.classList.remove('hidden');
@@ -618,18 +675,17 @@ document.addEventListener('DOMContentLoaded', () => {
             currentStatusBadgeEl.setAttribute('data-status', currentStatus);
         }
 
-        if (stepBackBtn) stepBackBtn.disabled = (currentStepIndex === 0);
-        if (stepNextBtn) stepNextBtn.disabled = (currentStepIndex === checkSteps.length - 1);
-
-        const activeUser = currentUser ? currentUser.username : '';
-        const assigneeStr = currentSelectedRoom['担当者'] || '';
-        const assignees = assigneeStr.split(',').map(s => s.trim()).filter(Boolean);
-
-        updateAssigneeUI(assigneeStr);
+        if (stepBackBtn) stepBackBtn.disabled = (currentStepIndex === 0 || isUpdatingStatus);
+        if (stepNextBtn) stepNextBtn.disabled = (currentStepIndex === checkSteps.length - 1 || isUpdatingStatus);
 
         if (isCommitteeUser()) {
-            const isMeAssigned = assignees.includes(activeUser);
+            const activeUser = currentUser ? currentUser.username : '';
+            const assigneeStr = currentSelectedRoom['担当者'] || '';
+            const assignees = assigneeStr.split(',').map(s => s.trim()).filter(Boolean);
 
+            updateAssigneeUI(assigneeStr);
+
+            const isMeAssigned = assignees.includes(activeUser);
             if (isMeAssigned) {
                 if (modalClaimBtn) modalClaimBtn.classList.add('hidden');
                 if (modalUnclaimBtn) modalUnclaimBtn.classList.remove('hidden');
@@ -642,6 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (stepBackBtn) {
         stepBackBtn.addEventListener('click', () => {
+            if (isUpdatingStatus) return;
             if (currentStepIndex > 0) {
                 currentStepIndex--;
                 if (currentSelectedRoom) {
@@ -655,6 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (stepNextBtn) {
         stepNextBtn.addEventListener('click', () => {
+            if (isUpdatingStatus) return;
             if (currentStepIndex < checkSteps.length - 1) {
                 currentStepIndex++;
                 if (currentSelectedRoom) {
@@ -666,19 +724,22 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- 楽観的UI更新（Optimistic UI）付きワンタップボタン処理 ---
     if (quickStatusActions) {
         quickStatusActions.querySelectorAll('.btn-action').forEach(btn => {
             btn.addEventListener('click', async (e) => {
-                if (!currentSelectedRoom || !isCommitteeUser()) return;
+                if (!currentSelectedRoom || !isCommitteeUser() || isUpdatingStatus) return;
 
                 const targetVal = e.target.getAttribute('data-val');
-                const step = checkSteps[currentStepIndex];
+                // リクエスト送信時の固定ステップ情報を保持 (操作中ステップ切り替えバグ防止)
+                const fixedStepIndex = currentStepIndex;
+                const step = checkSteps[fixedStepIndex];
                 const targetRoomIndex = currentSelectedRoom.rowIndex;
                 const targetRoomName = currentSelectedRoom['教室名'];
 
                 if (targetVal === '完了') {
-                    if (currentStepIndex === 1 || currentStepIndex === 2 || currentStepIndex === 4 || currentStepIndex === 5) {
-                        const prevStep = checkSteps[currentStepIndex - 1];
+                    if (fixedStepIndex === 1 || fixedStepIndex === 2 || fixedStepIndex === 4 || fixedStepIndex === 5) {
+                        const prevStep = checkSteps[fixedStepIndex - 1];
                         const prevStatus = currentSelectedRoom[prevStep.key] || '未実施';
 
                         if (prevStatus !== '完了') {
@@ -688,8 +749,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                currentSelectedRoom._currentStepIndex = currentStepIndex;
-                saveRoomStepToLocal(targetRoomIndex, currentStepIndex);
+                // 前の状態を保持 (エラー発生時のフォールバック用)
+                const previousStatusValue = currentSelectedRoom[step.key] || '未実施';
+
+                // --- 1. 楽観的UI更新 (即時表示) ---
+                currentSelectedRoom[step.key] = targetVal;
+                updateModalCheckArea();
+                renderFilteredCards();
+
+                // UIの操作をロック
+                isUpdatingStatus = true;
+                quickStatusActions.querySelectorAll('.btn-action').forEach(b => b.disabled = true);
 
                 try {
                     const res = await fetch('/api/update', {
@@ -703,14 +773,26 @@ document.addEventListener('DOMContentLoaded', () => {
                         })
                     });
 
-                    if (res.ok) {
-                        // ステータス更新成功後の処理
-                    } else {
-                        const err = await res.json();
-                        alert(`ステータス更新に失敗しました: ${err.error}`);
+                    const result = await res.json();
+
+                    if (!res.ok) {
+                        // --- 2. エラー時は元の状態へロールバック ---
+                        currentSelectedRoom[step.key] = previousStatusValue;
+                        updateModalCheckArea();
+                        renderFilteredCards();
+                        alert(`ステータス更新に失敗しました: ${result.error || '不明なエラー'}`);
                     }
                 } catch (err) {
-                    alert('通信エラーが発生しました');
+                    // ネットワークエラー時もロールバック
+                    currentSelectedRoom[step.key] = previousStatusValue;
+                    updateModalCheckArea();
+                    renderFilteredCards();
+                    alert('通信エラーが発生しました。接続を確認してください。');
+                } finally {
+                    isUpdatingStatus = false;
+                    if (quickStatusActions) {
+                        quickStatusActions.querySelectorAll('.btn-action').forEach(b => b.disabled = false);
+                    }
                 }
             });
         });
@@ -735,9 +817,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         action: 'claim'
                     })
                 });
+                const result = await res.json();
                 if (!res.ok) {
-                    const err = await res.json();
-                    alert(`担当登録に失敗しました: ${err.error}`);
+                    alert(`担当登録に失敗しました: ${result.error}`);
                 }
             } catch (err) {
                 alert('通信エラーが発生しました');
@@ -766,9 +848,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         action: 'unclaim'
                     })
                 });
+                const result = await res.json();
                 if (!res.ok) {
-                    const err = await res.json();
-                    alert(`担当解除に失敗しました: ${err.error}`);
+                    alert(`担当解除に失敗しました: ${result.error}`);
                 }
             } catch (err) {
                 alert('通信エラーが発生しました');
@@ -779,10 +861,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function fetchLogs(roomName) {
-        if (!logList) return;
+        if (!logList || !isCommitteeUser()) return;
         logList.innerHTML = '<li class="empty-log">読み込み中...</li>';
         try {
             const res = await fetch(`/api/logs/${encodeURIComponent(roomName)}`);
+            if (res.status === 403) {
+                logList.innerHTML = '<li class="empty-log">操作ログの閲覧権限がありません</li>';
+                return;
+            }
+            if (!res.ok) throw new Error('ログ取得失敗');
+
             const logs = await res.json();
 
             if (!logs || logs.length === 0) {
@@ -796,13 +884,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.className = 'log-item';
                 li.innerHTML = `
                     <div class="log-meta">
-                        <span>${log.userName}</span>
-                        <span>🕒 ${log.timestamp}</span>
+                        <span>${escapeHtml(log.userName)}</span>
+                        <span>🕒 ${escapeHtml(log.timestamp)}</span>
                     </div>
                     <div class="log-body">
-                        ${log.itemKey}: <code>${log.oldValue}</code> ➔ <strong>${log.newValue}</strong>
+                        ${escapeHtml(log.itemKey)}: <code>${escapeHtml(log.oldValue)}</code> ➔ <strong>${escapeHtml(log.newValue)}</strong>
                     </div>
-                    ${log.note ? `<div class="log-note">💬 ${log.note}</div>` : ''}
+                    ${log.note ? `<div class="log-note">💬 ${escapeHtml(log.note)}</div>` : ''}
                 `;
                 logList.appendChild(li);
             });
@@ -821,7 +909,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const note = editNote.value.trim();
 
             if (isNaN(newValue) || newValue < 0) {
-                alert('エラー: 有効な正の数値を入力してください。');
+                alert('エラー: 有効な正の整数を入力してください。');
                 return;
             }
 
@@ -850,6 +938,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.success) {
                     alert(`成功: ${selectedKey} を ${oldValue} ➔ ${newValue} に更新しました！`);
                     resetModalForms();
+                    await fetchLogs(currentSelectedRoom['教室名']);
                 } else {
                     alert('更新失敗: ' + (result.error || '不明なエラー'));
                 }
@@ -878,7 +967,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             if (isNaN(inputQty) || inputQty <= 0) {
-                alert('エラー: 移動する個数は1以上の数値を入力してください。');
+                alert('エラー: 移動する個数は1以上の整数を入力してください。');
                 return;
             }
 
@@ -937,6 +1026,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.success) {
                     alert(`成功: ${targetItem} の移動先を「${finalDestValue}」へ保存しました！`);
                     resetModalForms();
+                    await fetchLogs(currentSelectedRoom['教室名']);
                 } else {
                     alert('更新失敗: ' + (result.error || '不明なエラー'));
                 }
@@ -954,7 +1044,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (editItemKey) editItemKey.addEventListener('change', updateOldValueDisplay);
 
     const savedSize = localStorage.getItem('shibaurafes_card_size') || 'md';
-
     sizeBtns.forEach(btn => {
         if (btn.dataset.size === savedSize) {
             btn.classList.add('active');
@@ -1025,7 +1114,4 @@ document.addEventListener('DOMContentLoaded', () => {
     if (refreshBtn) refreshBtn.addEventListener('click', fetchData);
 
     checkLoginState();
-    if (currentUser) {
-        fetchData();
-    }
 });

@@ -12,36 +12,45 @@
 </head>
 
 <body>
-    <header>
-        <h1>教室運営 机椅子移動管理</h1>
-        <div class="user-info-area">
-            <span id="login-user-disp">未ログイン</span>
-            <button id="logout-btn" class="logout-btn hidden">ログアウト</button>
-        </div>
-        <button id="refresh-btn">最新情報に更新</button>
-    </header>
+    <!-- 初期ロード / 通信エラー画面 -->
+    <div id="app-loading-screen" class="app-loading-screen">
+        <div class="spinner"></div>
+        <p>初期化中...</p>
+    </div>
 
-    <main>
-        <!-- 検索バー ＆ サイズ切り替えエリア -->
-        <div class="controls-container">
-            <div id="search-box-container" class="search-box-container">
-                <div class="search-input-wrapper">
-                    <span class="search-icon" aria-hidden="true">検索</span>
-                    <input type="text" id="search-input" placeholder="検索 (教室名・団体名・担当者・進捗状況など)...">
-                    <button type="button" id="search-clear-btn" class="search-clear-btn hidden">&times;</button>
+    <!-- アプリメイン画面 (初期表示非表示) -->
+    <div id="app-main-content" class="hidden">
+        <header>
+            <h1>教室運営 机椅子移動管理</h1>
+            <div class="user-info-area">
+                <span id="login-user-disp">未ログイン</span>
+                <button id="logout-btn" class="logout-btn hidden">ログアウト</button>
+            </div>
+            <button id="refresh-btn">最新情報に更新</button>
+        </header>
+
+        <main>
+            <!-- 検索バー ＆ サイズ切り替えエリア -->
+            <div class="controls-container">
+                <div id="search-box-container" class="search-box-container">
+                    <div class="search-input-wrapper">
+                        <span class="search-icon" aria-hidden="true">検索</span>
+                        <input type="text" id="search-input" placeholder="検索 (教室名・団体名・担当者・進捗状況など)...">
+                        <button type="button" id="search-clear-btn" class="search-clear-btn hidden">&times;</button>
+                    </div>
+                </div>
+                <div class="size-selector">
+                    <button class="size-btn" data-size="sm">小</button>
+                    <button class="size-btn active" data-size="md">中</button>
+                    <button class="size-btn" data-size="lg">大</button>
                 </div>
             </div>
-            <div class="size-selector">
-                <button class="size-btn" data-size="sm">小</button>
-                <button class="size-btn active" data-size="md">中</button>
-                <button class="size-btn" data-size="lg">大</button>
-            </div>
-        </div>
 
-        <div id="card-list" class="floor-container size-md">
-            <!-- JSで描画 -->
-        </div>
-    </main>
+            <div id="card-list" class="floor-container size-md">
+                <!-- JSで描画 -->
+            </div>
+        </main>
+    </div>
 
     <!-- 詳細モーダル -->
     <div id="detail-modal" class="modal hidden">
@@ -254,8 +263,8 @@
         </div>
     </div>
 
-    <!-- ログイン画面モーダル -->
-    <div id="login-modal" class="modal">
+    <!-- ログイン画面モーダル (初期表示非表示) -->
+    <div id="login-modal" class="modal hidden">
         <div class="modal-overlay"></div>
         <div class="modal-content login-content">
             <h2>ログイン</h2>
