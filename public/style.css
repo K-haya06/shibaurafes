@@ -1204,6 +1204,12 @@ h1 {
 
 /* レスポンシブ調整 */
 @media (max-width: 600px) {
+    /* モーダル全体を動的ビューポートに対応 */
+    .modal {
+        height: 100vh;
+        height: 100dvh;
+    }
+
     /* ログインモーダル以外（詳細モーダル等）のボトムシート表示 */
     .modal:not(#login-modal) {
         align-items: flex-end;
@@ -1215,7 +1221,8 @@ h1 {
         border-bottom-left-radius: 0;
         border-bottom-right-radius: 0;
         animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        padding-bottom: 120px;
+        padding-bottom: max(24px, env(safe-area-inset-bottom));
+        max-height: 85dvh; /* スマホ画面の85%までに抑えてスクロール可能に */
     }
 
     .anteroom-badge .full-label {
