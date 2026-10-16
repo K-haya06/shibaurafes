@@ -532,6 +532,77 @@ app.get('/api/classrooms', requireAuth, async (req, res) => {
     }
 });
 
+// --- Discord Bot 連携専用 API ---
+const BOT_API_KEY = process.env.BOT_API_KEY || 'shibaura-secret-2026'; // config.jsonと合わせる
+
+app.post('/api/bot/check-request', async (req, res) => {
+    try {
+        // 1. APIキー認証
+        const apiKey = req.headers['x-api-key'];
+        if (apiKey !== BOT_API_KEY) {
+            return res.status(401).json({ error: '認証エラー: APIキーが一致しません' });
+        }
+
+        await ensureInitialLoad();
+
+        const { groupName, stepType, applicantName } = req.body;
+
+        // 2. 団体名から該当教室を検索
+        const targetRoom = cachedClassroomData.find(r => 
+            (r['団体名'] || '').trim() === (groupName || '').trim()
+        );
+
+        if (!targetRoom) {
+            console.warn(`[Bot連携] 団体名「${groupName}」の教室が見つかりませんでした`);
+            return res.status(404).json({ error: `団体名「${groupName}」の教室が見つかりません` });
+        }
+
+        const headers = cachedHeaders;
+        const targetColIndex = headers.indexOf(stepType);
+        if (targetColIndex === -1) {
+            return res.status(400).json({ error: `列「${stepType}」がシートに存在しません` });
+        }
+
+        // 3. ステータスを「依頼中」に更新
+        const timestamp = getFormattedTimestamp();
+        const valueWithTimestamp = `依頼中 ${timestamp}`;
+        const displayKey = stepType.replace('_Web', '_表示用');
+
+        targetRoom[stepType] = valueWithTimestamp;
+        targetRoom[displayKey] = '依頼中';
+
+        // 4. ブラウザ（委員会側の画面など全端末）へ即時プッシュ通知 ⚡️
+        broadcastSSE('data_updated', cachedClassroomData);
+
+        // 5. Webアプリ側のスプレッドシート（管理データ）へ非同期保存
+        const colLetter = colIndexToLetter(targetColIndex);
+        scheduleSheetWrite(async () => {
+            await executeWithRetry(() => sheetsCall('update', `管理データ!${colLetter}${targetRoom.rowIndex}`, () =>
+                rawSheets.spreadsheets.values.update({
+                    spreadsheetId: process.env.SPREADSHEET_ID,
+                    range: `'管理データ'!${colLetter}${targetRoom.rowIndex}`,
+                    valueInputOption: 'USER_ENTERED',
+                    requestBody: { values: [[valueWithTimestamp]] }
+                })
+            ));
+
+            // 操作ログにも追加
+            const logEntry = [
+                crypto.randomUUID(), timestamp, `Discord(${applicantName})`, 
+                targetRoom['教室名'], stepType, '未実施', '依頼中', 'Discord申請'
+            ];
+            enqueueLog(logEntry);
+        });
+
+        console.log(`[Bot連携成功] 団体「${groupName}」(${targetRoom['教室名']}) を「依頼中」に更新`);
+        res.json({ success: true, roomName: targetRoom['教室名'] });
+
+    } catch (error) {
+        console.error('[Bot連携エラー]:', error.message);
+        res.status(500).json({ error: 'サーバー内部エラー' });
+    }
+});
+
 // --- 進捗更新 API（仮更新・SSE即時配信・バックグラウンド保存・ロールバック対応） ---
 app.post('/api/update', requireCommittee, async (req, res) => {
     const apiStartTime = Date.now();
