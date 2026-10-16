@@ -533,7 +533,11 @@ app.get('/api/classrooms', requireAuth, async (req, res) => {
 });
 
 // --- Discord Bot 連携専用 API ---
-const BOT_API_KEY = process.env.BOT_API_KEY || 'shibaura-secret-2026'; // config.jsonと合わせる
+const BOT_API_KEY = process.env.BOT_API_KEY;
+
+if (!BOT_API_KEY) {
+    throw new Error('BOT_API_KEY が設定されていません');
+}
 
 app.post('/api/bot/check-request', async (req, res) => {
     try {
