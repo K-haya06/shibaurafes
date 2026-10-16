@@ -545,16 +545,41 @@ app.post('/api/bot/check-request', async (req, res) => {
 
         await ensureInitialLoad();
 
-        const { groupName, stepType, applicantName } = req.body;
+                const { groupName, stepType, applicantName } = req.body;
+        // 例: groupName = "303-Team Birdman Trial"
 
-        // 2. 団体名から該当教室を検索
-        const targetRoom = cachedClassroomData.find(r => 
-            (r['団体名'] || '').trim() === (groupName || '').trim()
-        );
+        // 1. ロール名から「教室番号（数字）」を取り出す（例: "303"）
+        const roomNumberMatch = (groupName || '').match(/\d+/);
+        const targetRoomNumber = roomNumberMatch ? roomNumberMatch[0] : null;
+
+        // 2. ハイフンで区切って団体名部分も取得（例: "Team Birdman Trial"）
+        const parts = (groupName || '').split(/[-–—_]/);
+        const rawGroupPart = parts.length > 1 ? parts.slice(1).join('-').trim() : (groupName || '').trim();
+
+        // 3. 教室データを柔軟に検索
+        const targetRoom = cachedClassroomData.find(r => {
+            const sheetRoom = (r['教室名'] || '').trim();   // シート上の教室名（例: "303教室" や "303"）
+            const sheetGroup = (r['団体名'] || '').trim();  // シート上の団体名（例: "Team Birdman Trial"）
+
+            // ①【優先】教室番号（数字）が一致するか判定（例: 303 == 303）
+            if (targetRoomNumber) {
+                const sheetNumberMatch = sheetRoom.match(/\d+/);
+                if (sheetNumberMatch && sheetNumberMatch[0] === targetRoomNumber) {
+                    return true;
+                }
+            }
+
+            // ② 団体名で部分一致するか判定
+            if (rawGroupPart && sheetGroup && (sheetGroup.includes(rawGroupPart) || rawGroupPart.includes(sheetGroup))) {
+                return true;
+            }
+
+            return false;
+        });
 
         if (!targetRoom) {
-            console.warn(`[Bot連携] 団体名「${groupName}」の教室が見つかりませんでした`);
-            return res.status(404).json({ error: `団体名「${groupName}」の教室が見つかりません` });
+            console.warn(`[Bot連携] ロール名「${groupName}」（教室番号: ${targetRoomNumber}）に一致する教室が見つかりませんでした`);
+            return res.status(404).json({ error: `教室「${targetRoomNumber || groupName}」が見つかりません` });
         }
 
         const headers = cachedHeaders;
