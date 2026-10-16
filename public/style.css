@@ -1124,10 +1124,21 @@ h1 {
     display: none;
 }
 
+/* --- ログインモーダル専用スタイル --- */
+#login-modal {
+    align-items: center !important;
+    justify-content: center !important;
+}
+
 .login-content {
-    max-width: 360px;
+    max-width: 360px !important;
+    width: 90%;
     margin: auto;
-    border-radius: 12px;
+    border-radius: 16px !important;
+    padding: 24px 20px !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    background: #ffffff;
+    animation: popCenter 0.2s ease-out !important;
 }
 
 .form-group {
@@ -1187,11 +1198,12 @@ h1 {
 
 /* レスポンシブ調整 */
 @media (max-width: 600px) {
-    .modal {
+    /* ログインモーダル以外（詳細モーダル等）のボトムシート表示 */
+    .modal:not(#login-modal) {
         align-items: flex-end;
     }
 
-    .modal-content {
+    .modal:not(#login-modal) .modal-content {
         border-top-left-radius: 20px;
         border-top-right-radius: 20px;
         border-bottom-left-radius: 0;
