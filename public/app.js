@@ -75,6 +75,58 @@ document.addEventListener('DOMContentLoaded', () => {
         return currentUser && currentUser.role === '委員会';
     }
 
+    /* --- カード内短縮表示用ヘルパー関数 --- */
+    function getMoveItemHtml(label, moveQty, destStr, unit = '台') {
+        const qty = parseInt(moveQty || 0, 10);
+        const safeDest = escapeHtml(destStr || '-');
+
+        if (qty === 0) {
+            // 移動数が0の場合
+            return `
+                <div class="card-detail-item no-move">
+                    <span class="label-title">${escapeHtml(label)}</span>
+                    <span class="colon">:</span>
+                    <span class="text-no-move">移動なし</span>
+                </div>
+            `;
+        } else if (qty < 0) {
+            // マイナスの場合は「〇〇から〇台」
+            const positiveQty = Math.abs(qty);
+            return `
+                <div class="card-detail-item move-in">
+                    <span class="label-title">${escapeHtml(label)}</span>
+                    <span class="colon">:</span>
+                    <span class="dest-text">${safeDest}</span>
+                    <span class="text-particle">から</span>
+                    <span class="num-move-unit num-in">${positiveQty}${unit}</span>
+                </div>
+            `;
+        } else {
+            // プラスの場合は「〇〇へ〇台」
+            return `
+                <div class="card-detail-item move-out">
+                    <span class="label-title">${escapeHtml(label)}</span>
+                    <span class="colon">:</span>
+                    <span class="dest-text">${safeDest}</span>
+                    <span class="text-particle">へ</span>
+                    <span class="num-move-unit num-out">${qty}${unit}</span>
+                </div>
+            `;
+        }
+    }
+
+    /* --- 詳細モーダル内テーブル用ヘルパー関数 --- */
+    function formatMoveQtyTd(qtyVal, unit = '台') {
+        const qty = parseInt(qtyVal || 0, 10);
+        if (qty === 0) {
+            return `<span class="td-no-move">0 (なし)</span>`;
+        } else if (qty < 0) {
+            return `<span class="td-move-in">搬入 ${Math.abs(qty)}${unit}</span>`;
+        } else {
+            return `<span class="td-move-out">搬出 ${qty}${unit}</span>`;
+        }
+    }
+
     function getGlobalDefaultStepIndex() {
         if (!classroomData || classroomData.length === 0) return 0;
         let globalStep = 0;
@@ -151,7 +203,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // ⚡️ 全端末へ「元に戻す（ロールバック）」を通知 🔄
         eventSource.addEventListener('rollback', (e) => {
             try {
                 const payload = JSON.parse(e.data);
@@ -206,13 +257,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 setSafeText('td-deskA-orig', updatedRoom['机α（元の数）'] || '0');
                 setSafeText('td-deskA-used', updatedRoom['机α（使用数）'] || '0');
-                setSafeText('td-deskA-move', updatedRoom['机α（移動数）'] || '0');
+                const tdDeskAMove = document.getElementById('td-deskA-move');
+                if (tdDeskAMove) tdDeskAMove.innerHTML = formatMoveQtyTd(updatedRoom['机α（移動数）'], '台');
+
                 setSafeText('td-deskB-orig', updatedRoom['机β（元の数）'] || '0');
                 setSafeText('td-deskB-used', updatedRoom['机β（使用数）'] || '0');
-                setSafeText('td-deskB-move', updatedRoom['机β（移動数）'] || '0');
+                const tdDeskBMove = document.getElementById('td-deskB-move');
+                if (tdDeskBMove) tdDeskBMove.innerHTML = formatMoveQtyTd(updatedRoom['机β（移動数）'], '台');
+
                 setSafeText('td-chair-orig', updatedRoom['椅子（元の数）'] || '0');
                 setSafeText('td-chair-used', updatedRoom['椅子（使用数）'] || '0');
-                setSafeText('td-chair-move', updatedRoom['椅子（移動数）'] || '0');
+                const tdChairMove = document.getElementById('td-chair-move');
+                if (tdChairMove) tdChairMove.innerHTML = formatMoveQtyTd(updatedRoom['椅子（移動数）'], '脚');
             }
         }
         renderFilteredCards();
@@ -409,13 +465,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const step = checkSteps[stepIdx];
                 const status = item[step.key] || '未実施';
 
-                const deskAMove = parseInt(item['机α（移動数）'] || 0, 10);
-                const deskBMove = parseInt(item['机β（移動数）'] || 0, 10);
-                const chairMove = parseInt(item['椅子（移動数）'] || 0, 10);
-
-                const deskADest = item['机α移動先'] || '-';
-                const deskBDest = item['机β移動先'] || '-';
-                const chairDest = item['椅子移動先'] || '-';
+                // 移動数表示の最適化ロジック適用
+                const deskAMoveHtml = getMoveItemHtml('机α', item['机α（移動数）'], item['机α移動先'], '台');
+                const deskBMoveHtml = getMoveItemHtml('机β', item['机β（移動数）'], item['机β移動先'], '台');
+                const chairMoveHtml = getMoveItemHtml('椅子', item['椅子（移動数）'], item['椅子移動先'], '脚');
 
                 const anteroom = (item['控え室'] || '').toString().trim();
                 const safeAnteroom = escapeHtml(anteroom);
@@ -445,27 +498,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${isCommitteeUser() ? `<div class="card-assignee-row">${assigneeHtml}</div>` : ''}
 
                     <div class="card-detail-rows">
-                        <div class="card-detail-item">
-                            <span class="label-title">机α</span>
-                            <span class="colon">:</span>
-                            <span class="dest-text">${escapeHtml(deskADest)}</span>
-                            <span class="text-particle">へ</span>
-                            <span class="num-move-unit">${deskAMove}台</span>
-                        </div>
-                        <div class="card-detail-item">
-                            <span class="label-title">机β</span>
-                            <span class="colon">:</span>
-                            <span class="dest-text">${escapeHtml(deskBDest)}</span>
-                            <span class="text-particle">へ</span>
-                            <span class="num-move-unit">${deskBMove}台</span>
-                        </div>
-                        <div class="card-detail-item">
-                            <span class="label-title">椅子</span>
-                            <span class="colon">:</span>
-                            <span class="dest-text">${escapeHtml(chairDest)}</span>
-                            <span class="text-particle">へ</span>
-                            <span class="num-move-unit">${chairMove}脚</span>
-                        </div>
+                        ${deskAMoveHtml}
+                        ${deskBMoveHtml}
+                        ${chairMoveHtml}
                     </div>
 
                     <div class="card-body">
@@ -641,15 +676,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         setSafeText('td-deskA-orig', item['机α（元の数）'] || '0');
         setSafeText('td-deskA-used', item['机α（使用数）'] || '0');
-        setSafeText('td-deskA-move', item['机α（移動数）'] || '0');
+        const tdDeskAMove = document.getElementById('td-deskA-move');
+        if (tdDeskAMove) tdDeskAMove.innerHTML = formatMoveQtyTd(item['机α（移動数）'], '台');
 
         setSafeText('td-deskB-orig', item['机β（元の数）'] || '0');
         setSafeText('td-deskB-used', item['机β（使用数）'] || '0');
-        setSafeText('td-deskB-move', item['机β（移動数）'] || '0');
+        const tdDeskBMove = document.getElementById('td-deskB-move');
+        if (tdDeskBMove) tdDeskBMove.innerHTML = formatMoveQtyTd(item['机β（移動数）'], '台');
 
         setSafeText('td-chair-orig', item['椅子（元の数）'] || '0');
         setSafeText('td-chair-used', item['椅子（使用数）'] || '0');
-        setSafeText('td-chair-move', item['椅子（移動数）'] || '0');
+        const tdChairMove = document.getElementById('td-chair-move');
+        if (tdChairMove) tdChairMove.innerHTML = formatMoveQtyTd(item['椅子（移動数）'], '脚');
 
         const deskADestEl = document.getElementById('td-deskA-dest');
         if (deskADestEl) deskADestEl.innerHTML = formatDestHtml(item['机α移動先']);
@@ -747,7 +785,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- ⚡️ 楽観的UI仮更新（ボタン連打防止＆即時フィードバック） ---
     if (quickStatusActions) {
         quickStatusActions.querySelectorAll('.btn-action').forEach(btn => {
             btn.addEventListener('click', async (e) => {
@@ -771,7 +808,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                // 1. 【仮更新】操作端末の画面を「押した瞬間」に即座に更新する ⚡️
                 const oldDisplayVal = currentSelectedRoom[step.key];
                 const oldWebVal = currentSelectedRoom[step.updateKey];
 
@@ -781,7 +817,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateModalCheckArea();
                 renderFilteredCards();
 
-                // 2. サーバーへリクエスト送信
                 try {
                     const res = await fetch('/api/update', {
                         method: 'POST',
@@ -796,7 +831,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const result = await res.json();
                     if (!res.ok) {
-                        // リクエスト失敗時のローカルロールバック 🔄
                         currentSelectedRoom[step.key] = oldDisplayVal;
                         currentSelectedRoom[step.updateKey] = oldWebVal;
                         updateModalCheckArea();
@@ -804,7 +838,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         alert(`ステータス更新に失敗しました: ${result.error || '不明なエラー'}`);
                     }
                 } catch (err) {
-                    // 通信エラー時のローカルロールバック 🔄
                     currentSelectedRoom[step.key] = oldDisplayVal;
                     currentSelectedRoom[step.updateKey] = oldWebVal;
                     updateModalCheckArea();
