@@ -552,30 +552,38 @@ app.post('/api/bot/check-request', async (req, res) => {
                 const { groupName, stepType, applicantName } = req.body;
         // 例: groupName = "303-Team Birdman Trial"
 
-        // 1. ロール名から「教室番号（数字）」を取り出す（例: "303"）
-        const roomNumberMatch = (groupName || '').match(/\d+/);
-        const targetRoomNumber = roomNumberMatch ? roomNumberMatch[0] : null;
+        // 1. 教室番号パターン抽出（数字だけでなくアルファベット・ハイフン・丸数字①〜⑳なども含めて抽出）
+        // 例: "FS-3①-Team" -> "FS-3①" / "301-Team" -> "301"
+        const roomCodeMatch = (groupName || '').match(/([A-Za-z]+[-_])?\d+[①-⑳1-9]?/);
+        const targetRoomCode = roomCodeMatch ? roomCodeMatch[0] : null;
 
-        // 2. ハイフンで区切って団体名部分も取得（例: "Team Birdman Trial"）
+        // 2. ハイフン・アンダースコア等で分離した団体名部分
         const parts = (groupName || '').split(/[-–—_]/);
         const rawGroupPart = parts.length > 1 ? parts.slice(1).join('-').trim() : (groupName || '').trim();
 
-        // 3. 教室データを柔軟に検索
+        // 3. 教室データを柔軟かつ正確に検索
         const targetRoom = cachedClassroomData.find(r => {
-            const sheetRoom = (r['教室名'] || '').trim();   // シート上の教室名（例: "303教室" や "303"）
-            const sheetGroup = (r['団体名'] || '').trim();  // シート上の団体名（例: "Team Birdman Trial"）
+            const sheetRoom = (r['教室名'] || '').trim();   // 例: "FS-3①", "303教室"
+            const sheetGroup = (r['団体名'] || '').trim();  // 例: "Team Birdman"
 
-            // ①【優先】教室番号（数字）が一致するか判定（例: 303 == 303）
-            if (targetRoomNumber) {
-                const sheetNumberMatch = sheetRoom.match(/\d+/);
-                if (sheetNumberMatch && sheetNumberMatch[0] === targetRoomNumber) {
-                    return true;
-                }
+            // ① 【最優先】教室名そのままの完全一致、または前後関係の一致（"FS-3①" == "FS-3①" 等）
+            if (targetRoomCode && (sheetRoom === targetRoomCode || sheetRoom.startsWith(targetRoomCode) || targetRoomCode.startsWith(sheetRoom))) {
+                return true;
             }
 
-            // ② 団体名で部分一致するか判定
+            // ② 【次優先】団体名での完全一致・部分一致
             if (rawGroupPart && sheetGroup && (sheetGroup.includes(rawGroupPart) || rawGroupPart.includes(sheetGroup))) {
                 return true;
+            }
+
+            // ③ 【予備】通常の3桁数字教室の場合（例: "303" と "303教室"）
+            const roomNumMatch = (groupName || '').match(/^\d+/);
+            if (roomNumMatch) {
+                const targetNum = roomNumMatch[0];
+                const sheetNumMatch = sheetRoom.match(/\d+/);
+                if (sheetNumMatch && sheetNumMatch[0] === targetNum && !sheetRoom.includes('FS')) {
+                    return true;
+                }
             }
 
             return false;
