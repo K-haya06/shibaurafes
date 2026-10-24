@@ -78,40 +78,37 @@ document.addEventListener('DOMContentLoaded', () => {
     /* --- カード内短縮表示用ヘルパー関数 --- */
     function getMoveItemHtml(label, moveQty, destStr, unit = '台') {
         const qty = parseInt(moveQty || 0, 10);
-        const safeDest = escapeHtml(destStr || '-');
+        const formattedDest = escapeHtml(destStr || '-').replace(/（/g, '(').replace(/）/g, ')').replace(/\s*\((\d+)[台脚]\)/g, ' ($1)');
 
         if (qty === 0) {
-            // 移動数が0の場合
             return `
-                <div class="card-detail-item no-move">
-                    <span class="label-title">${escapeHtml(label)}</span>
-                    <span class="colon">:</span>
-                    <span class="text-no-move">移動なし</span>
-                </div>
-            `;
+            <div class="card-detail-item no-move">
+                <span class="label-title">${escapeHtml(label)}</span>
+                <span class="colon">:</span>
+                <span class="text-no-move">移動なし</span>
+            </div>
+        `;
         } else if (qty < 0) {
-            // マイナスの場合は「〇〇から〇台」
             const positiveQty = Math.abs(qty);
             return `
-                <div class="card-detail-item move-in">
-                    <span class="label-title">${escapeHtml(label)}</span>
-                    <span class="colon">:</span>
-                    <span class="dest-text">${safeDest}</span>
-                    <span class="text-particle">から</span>
-                    <span class="num-move-unit num-in">${positiveQty}${unit}</span>
-                </div>
-            `;
+            <div class="card-detail-item move-in">
+                <span class="label-title">${escapeHtml(label)}</span>
+                <span class="colon">:</span>
+                <span class="dest-text">${formattedDest}</span>
+                <span class="text-particle">から</span>
+                <span class="num-move-unit num-in">${positiveQty}${unit}</span>
+            </div>
+        `;
         } else {
-            // プラスの場合は「〇〇へ〇台」
             return `
-                <div class="card-detail-item move-out">
-                    <span class="label-title">${escapeHtml(label)}</span>
-                    <span class="colon">:</span>
-                    <span class="dest-text">${safeDest}</span>
-                    <span class="text-particle">へ</span>
-                    <span class="num-move-unit num-out">${qty}${unit}</span>
-                </div>
-            `;
+            <div class="card-detail-item move-out">
+                <span class="label-title">${escapeHtml(label)}</span>
+                <span class="colon">:</span>
+                <span class="dest-text">${formattedDest}</span>
+                <span class="text-particle">へ</span>
+                <span class="num-move-unit num-out">${qty}${unit}</span>
+            </div>
+        `;
         }
     }
 
@@ -230,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        eventSource.onerror = () => {};
+        eventSource.onerror = () => { };
     }
 
     function updateClassroomData(newData) {
@@ -366,7 +363,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
-            await fetch('/api/logout', { method: 'POST' }).catch(() => {});
+            await fetch('/api/logout', { method: 'POST' }).catch(() => { });
             window.location.reload();
         });
     }
@@ -1015,49 +1012,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('エラー: 新しい移動先を入力してください。');
                 return;
             }
-            if (isNaN(inputQty) || inputQty <= 0) {
-                alert('エラー: 移動する個数は1以上の整数を入力してください。');
+            // マイナス（持ってくる場合）も考慮し、0以外（!= 0）を許可
+            if (isNaN(inputQty) || inputQty === 0) {
+                alert('エラー: 移動する個数を入力してください（0以外の整数）。');
                 return;
             }
 
-            let totalMoveQty = 0;
             let destColKey = '';
+            let unitName = '台';
 
             if (targetItem === '机α') {
-                totalMoveQty = parseInt(currentSelectedRoom['机α（移動数）'] || 0, 10);
                 destColKey = '机α移動先';
+                unitName = '台';
             } else if (targetItem === '机β') {
-                totalMoveQty = parseInt(currentSelectedRoom['机β（移動数）'] || 0, 10);
                 destColKey = '机β移動先';
+                unitName = '台';
             } else {
-                totalMoveQty = parseInt(currentSelectedRoom['椅子（移動数）'] || 0, 10);
                 destColKey = '椅子移動先';
+                unitName = '台';
             }
 
-            if (inputQty > totalMoveQty) {
-                alert(`エラー: ${targetItem} の変更個数（${inputQty}脚）が、合計移動数（${totalMoveQty}脚）を超えています！`);
-                return;
-            }
+            // 現在の移動先文字列を取得
+            const currentDestStr = (currentSelectedRoom[destColKey] || '').trim();
 
-            const currentDestStr = currentSelectedRoom[destColKey] || '';
+            // 既存を消さずに後ろに追加
+            const newItemStr = `${newDestName} (${inputQty}${unitName})`;
             let finalDestValue = '';
-            let updateType = '';
 
-            if (inputQty === totalMoveQty) {
-                finalDestValue = `${newDestName} (${inputQty}脚)`;
-                updateType = '全体上書き';
+            if (currentDestStr && currentDestStr !== '-') {
+                finalDestValue = `${currentDestStr}, ${newItemStr}`;
             } else {
-                const remainQty = totalMoveQty - inputQty;
-                const baseDestName = currentDestStr ? currentDestStr.split('(')[0].trim() : '元の移動先';
-                finalDestValue = `${baseDestName} (${remainQty}脚), ${newDestName} (${inputQty}脚)`;
-                updateType = '一部追加';
+                finalDestValue = newItemStr;
             }
 
             try {
                 saveDestBtn.disabled = true;
                 saveDestBtn.textContent = '送信中...';
 
-                const detailLogNote = `[${targetItem}の移動先変更: ${updateType}] 新移動先:${newDestName}(${inputQty}脚) ${note ? 'メモ:' + note : ''}`;
+                const detailLogNote = `[${targetItem}の移動先追加] 追加:${newItemStr} ${note ? 'メモ:' + note : ''}`;
 
                 const res = await fetch('/api/update-quantity', {
                     method: 'POST',
