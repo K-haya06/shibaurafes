@@ -635,8 +635,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (assignActionArea) assignActionArea.classList.add('hidden');
         }
 
-        setSafeText('val-leader', item['責任者'] || '-');
-        setSafeText('val-subleader', item['副責任者'] || '-');
+        // 責任者・副責任者の表示を削除
+        //setSafeText('val-leader', item['責任者'] || '-');
+        //setSafeText('val-subleader', item['副責任者'] || '-');
 
         const singleDeskVal = parseInt(item['一人用机'] || 0, 10);
         const singleChairVal = parseInt(item['一人用椅子'] || 0, 10);
