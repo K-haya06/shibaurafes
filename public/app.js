@@ -58,7 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
         { key: '片付け3次_表示用', updateKey: '片付け3次_Web', name: '片付け 3次' }
     ];
 
-    const LAST_GLOBAL_STEP_KEY = 'shibaurafes_last_global_step';
     const ROOM_STEPS_KEY = 'shibaurafes_room_steps';
 
     function escapeHtml(str) {
@@ -124,37 +123,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function getGlobalDefaultStepIndex() {
-        if (!classroomData || classroomData.length === 0) return 0;
-        let globalStep = 0;
-        for (let i = 0; i < checkSteps.length; i++) {
+    // ★ 後ろのフェーズ（片付け3次）を優先して、未実施以外の最新ステップを取得する関数
+    function getLatestActiveStepIndex(item) {
+        for (let i = checkSteps.length - 1; i >= 0; i--) {
             const step = checkSteps[i];
-            const allCompleted = classroomData.every(item => item[step.key] === '完了');
-            if (allCompleted) {
-                globalStep = (i + 1 < checkSteps.length) ? i + 1 : i;
-            } else {
-                break;
+            const status = item[step.key] || '未実施';
+            
+            // 未実施以外（依頼中、対応中、完了など）の値が入っていればそのインデックスを返す
+            if (status !== '未実施' && status !== '') {
+                return i;
             }
         }
-        return globalStep;
+        // 全て未実施の場合は 0（準備 1次）
+        return 0;
     }
 
     function getCardDefaultStepIndex(item) {
-        const globalStep = getGlobalDefaultStepIndex();
-        const savedLastGlobalStep = parseInt(localStorage.getItem(LAST_GLOBAL_STEP_KEY) || '0', 10);
-
-        if (globalStep > savedLastGlobalStep) {
-            localStorage.setItem(LAST_GLOBAL_STEP_KEY, globalStep.toString());
-            localStorage.removeItem(ROOM_STEPS_KEY);
-            delete item._currentStepIndex;
-            return globalStep;
-        }
-
         if (item._currentStepIndex !== undefined) {
             return item._currentStepIndex;
         }
-
-        return globalStep;
+        return getLatestActiveStepIndex(item);
     }
 
     function saveRoomStepToLocal(rowIndex, stepIndex) {
@@ -231,15 +219,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateClassroomData(newData) {
-        const savedRoomSteps = getSavedRoomStepsFromLocal();
-
         classroomData = newData.map(newItem => {
-            const oldItem = classroomData.find(old => old.rowIndex === newItem.rowIndex);
-            if (oldItem && oldItem._currentStepIndex !== undefined) {
-                newItem._currentStepIndex = oldItem._currentStepIndex;
-            } else if (savedRoomSteps[newItem.rowIndex] !== undefined) {
-                newItem._currentStepIndex = savedRoomSteps[newItem.rowIndex];
-            }
+            // 片付け3次優先の逆順判定で最新ステップを自動算出
+            newItem._currentStepIndex = getLatestActiveStepIndex(newItem);
             return newItem;
         });
 
@@ -247,6 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const updatedRoom = classroomData.find(r => r.rowIndex === currentSelectedRoom.rowIndex);
             if (updatedRoom) {
                 currentSelectedRoom = updatedRoom;
+                currentStepIndex = updatedRoom._currentStepIndex;
                 updateModalCheckArea();
                 if (isCommitteeUser()) {
                     updateAssigneeUI(updatedRoom['担当者']);
@@ -462,7 +445,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const step = checkSteps[stepIdx];
                 const status = item[step.key] || '未実施';
 
-                // 移動数表示の最適化ロジック適用
                 const deskAMoveHtml = getMoveItemHtml('机α', item['机α（移動数）'], item['机α移動先'], '台');
                 const deskBMoveHtml = getMoveItemHtml('机β', item['机β（移動数）'], item['机β移動先'], '台');
                 const chairMoveHtml = getMoveItemHtml('椅子', item['椅子（移動数）'], item['椅子移動先'], '脚');
@@ -634,10 +616,6 @@ document.addEventListener('DOMContentLoaded', () => {
             if (modalAssigneeRow) modalAssigneeRow.classList.add('hidden');
             if (assignActionArea) assignActionArea.classList.add('hidden');
         }
-
-        // 責任者・副責任者の表示を削除
-        //setSafeText('val-leader', item['責任者'] || '-');
-        //setSafeText('val-subleader', item['副責任者'] || '-');
 
         const singleDeskVal = parseInt(item['一人用机'] || 0, 10);
         const singleChairVal = parseInt(item['一人用椅子'] || 0, 10);
@@ -1013,7 +991,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('エラー: 新しい移動先を入力してください。');
                 return;
             }
-            // マイナス（持ってくる場合）も考慮し、0以外（!= 0）を許可
             if (isNaN(inputQty) || inputQty === 0) {
                 alert('エラー: 移動する個数を入力してください（0以外の整数）。');
                 return;
@@ -1033,10 +1010,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 unitName = '台';
             }
 
-            // 現在の移動先文字列を取得
             const currentDestStr = (currentSelectedRoom[destColKey] || '').trim();
-
-            // 既存を消さずに後ろに追加
             const newItemStr = `${newDestName} (${inputQty}${unitName})`;
             let finalDestValue = '';
 
